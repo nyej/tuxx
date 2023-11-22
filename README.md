@@ -18,7 +18,7 @@ A simple, modern, extensible single-header C++ unit testing library.
   - [Some More Interesting Examples](#some-more-interesting-examples)
     - [Test Cases with Fixtures](#test-cases-with-fixtures)
     - [Test Cases with Arguments](#test-cases-with-arguments)
-      - [Arguments With a Pre-Defined Array/Container](#arguments-with-a-pre-defined-arraycontainer)
+      - [Arguments With a Pre-Defined Array](#arguments-with-a-pre-defined-array)
       - [Arguments With an Automatically Defined Array](#arguments-with-an-automatically-defined-array)
       - [Arguments With a more interesting Argument Type](#arguments-with-a-more-interesting-argument-type)
     - [Argument Test Cases with Fixtures](#argument-test-cases-with-fixtures)
@@ -182,9 +182,9 @@ The body of the test case is a regular function body and is expected to be added
 |-|-|
 |`test_case(`test_case_name`)`|Declares a test case that accepts no arguments with the name `test_case_name`.|
 |`test_case_f(`fixture_class_or_struct, test_case_name`)`|Declares a test case that uses a user-defined `struct`/`class` `fixture_class_or_struct` whose constructor and destructor works as the `setup`/`teardown`, respectively, if needed. The fixture instance is available within the body of the test case as `fixture`.|
-|`test_case_args_arr(`test_case_name, name_of_array/container_with_args`)`|Generates a set of test cases, one for each element in the provided container. Each test case will have its own separate id/number so it can be isolated with `-n`, `--number`. The argment is available within the test case as `arg`.|
-|`test_case_args(`test_case_name, arg_type, ...comma-delimited args...`)`|This is the same as `test_case_args_arr`, except the array/container does not need to be defined prior. This will define the array as `arg_type hidden_name_of_arr[] = {...comma-delimited args};` then call `test_case_args_arr`.|
-|`test_case_args_arr_f(`fixture_class_or_struct, name_of_array/container_with_args`)`|This is a combination of `test_case_f` and `test_case_args_arr`. The fixture is available within the body of the test case as `fixture` and each argument is available as `arg`.|
+|`test_case_args_arr(`test_case_name, name_of_array_with_args`)`|Generates a set of test cases, one for each element in the provided array. Each test case will have its own separate id/number so it can be isolated with `-n`, `--number`. The argment is available within the test case as `arg`.|
+|`test_case_args(`test_case_name, arg_type, ...comma-delimited args...`)`|This is the same as `test_case_args_arr`, except the array does not need to be defined prior. This will define the array as `arg_type hidden_name_of_arr[] = {...comma-delimited args};` then call `test_case_args_arr`.|
+|`test_case_args_arr_f(`fixture_class_or_struct, name_of_array_with_args`)`|This is a combination of `test_case_f` and `test_case_args_arr`. The fixture is available within the body of the test case as `fixture` and each argument is available as `arg`.|
 |`test_case_args_f(`fixture_class_or_struct, arg_type ...comma-delimited args...`)`|This is a combination of `test_case_f` and `test_case_args`. The fixture is available within the body of the test case as `fixture` and each argument is available as `arg`.|
 
 ## List of Assertions
@@ -255,7 +255,7 @@ test_case_f(my_fixture, my_test_case_name) {
 
 ### Test Cases with Arguments
 
-#### Arguments With a Pre-Defined Array/Container
+#### Arguments With a Pre-Defined Array
 
 ```C++
 int const some_values[] = {1, 2, 3, 4};
