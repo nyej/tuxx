@@ -1,0 +1,5 @@
+project(examples)
+
+add_executable(basic_test basic_test.cpp)
+add_executable(custom_reporter_derived custom_reporter_derived.cpp)
+add_executable(custom_reporter_fns custom_reporter_fns.cpp)
