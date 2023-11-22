@@ -153,7 +153,7 @@ Compile errors will result if a type is missing the operator.
 
 ## Command Line Options
 
-The following command line options are supported by each test executable:
+The following command line options are supported by the resulting test executable:
 
 |Option|Description|
 |-|-|
