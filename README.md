@@ -31,6 +31,7 @@ A simple, modern, extensible single-header C++ unit testing library.
     - [Defining a Custome Reporter](#defining-a-custome-reporter)
       - [Deriving a custom Class from `nyej::tuxx::test_case_reporter`](#deriving-a-custom-class-from-nyejtuxxtest_case_reporter)
       - [Creating a custom Reporter without Derivation](#creating-a-custom-reporter-without-derivation)
+  - [Exit Codes](#exit-codes)
   - [Colorized Output](#colorized-output)
   - [Emojis](#emojis)
   - [TUXX Library Tests and Examples](#tuxx-library-tests-and-examples)
@@ -683,6 +684,11 @@ static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
 It will need to either use the output stream provided to it or accumulate all results then write
 the results to `stdout`/`stderr` in `finish`.
 
+## Exit Codes
+
+If all test cases pass, the test executable will exit with a status code of `0`.
+Otherwise, it will exit with a non-zero code.
+
 ## Colorized Output
 
 The default test case reporter and the test listing support colorized output.
@@ -735,7 +741,7 @@ The default emojis can be overridden using the following `#define`s:
 |`TUXX_EMOJI_PASSED`|Printed to show a test case passed|✅|
 |`TUXX_EMOJI_FAILED`|Printed to show a test case failed|❌|
 |`TUXX_EMOJI_SUCCESS`|Printed as summary of the overall results when all cases pass|😎|
-|`TUXX_EMOJI_FAILURE`|Printed as summary of the overall results when not all cases pass|🤒|
+|`TUXX_EMOJI_FAILURE`|Printed as summary of the overall results when one or more cases fail|🤒|
 
 >NOTE: these are simply literal strings and more than one character can be in them.
 For example, one could `#define TUXX_EMOJI_PREFIX "this is the emoji prefix even though I am not using any emojis here"`.
