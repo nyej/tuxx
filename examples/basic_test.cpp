@@ -22,6 +22,7 @@ SOFTWARE.
 
  */
 
+#include <array>
 #include <cstdlib>
 
 #define TUXX_DEFINE_TEST_MAIN
@@ -74,7 +75,9 @@ test_case_f(my_fixture, fixture_test_case_2) {
     assert_eq(fixture.name.length(), strlen("fixture"));
 }
 
-test_case_args_arr_f(my_fixture, fixture_and_args_test_case_1, args) {
+// Now use a std container for args.
+std::array<int, 4> args_2{{0, 1, 2, 3}};
+test_case_args_arr_f(my_fixture, fixture_and_args_test_case_1, args_2) {
     assert_le(arg, static_cast<int>(fixture.name.length()));
 }
 

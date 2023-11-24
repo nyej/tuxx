@@ -330,7 +330,7 @@ struct test_case_adder {
 
 struct test_case_multi_adder {
     template <
-        typename Param,
+        typename ParamIter,
         typename Fn
     >
     test_case_multi_adder(
@@ -338,13 +338,13 @@ struct test_case_multi_adder {
         int line,
         char const* name,
         std::vector<test_case_instance>& tests,
-        Param const* args,
-        std::size_t n_args,
+        ParamIter args_beg,
+        ParamIter args_end,
         Fn const& fn
     ) {
         using namespace std;
-        for (auto i = 0u; i < n_args; ++i) {
-            auto const& arg = args[i];
+        for ( ; args_beg != args_end; ++args_beg) {
+            auto const& arg = *args_beg;
             ostringstream_type oss;
             oss << arg;
             auto const arg_str = oss.str();
@@ -451,6 +451,7 @@ struct test_case_reporter_args {
     test_case_instance const* p_test_cases{}; // Array of test cases.
     std::size_t n_tests{};
     std::size_t concurrency{};
+    bool capture_output{};
     bool write_colorized{};
     bool use_emojis{};
 };
@@ -623,8 +624,8 @@ struct test_case_reporter_fns : test_case_reporter {
         __LINE__, \
         #name, \
         ::nyej::tuxx::detail::tests__(), \
-        args, \
-        sizeof(args) / sizeof(args[0]), \
+        std::begin(args), \
+        std::end(args), \
         TUXX_MAKE_TEST_CASE_NAME__(name ## _args_arr) \
     }; \
     static void TUXX_MAKE_TEST_CASE_NAME__(name ## _args_arr)( \
@@ -677,8 +678,8 @@ struct test_case_reporter_fns : test_case_reporter {
         __LINE__, \
         #fix_type "." #name, \
         ::nyej::tuxx::detail::tests__(), \
-        args, \
-        sizeof(args) / sizeof(args[0]), \
+        std::begin(args), \
+        std::end(args), \
         []( \
             ::nyej::tuxx::detail::testing_context const& ctx, \
             typename std::remove_reference< \
@@ -1760,6 +1761,7 @@ void usage(
         "[-d|--delim] <delim> "
         "[-r|--randomized] "
         "[-t|--plain]"
+        "[-o|--redirect]"
         "\n\n"
         "options:\n"
         "-h|--help                      Print this message and exit.\n"
@@ -1790,7 +1792,6 @@ void usage(
         "\n"
         "--no-color                     Print output without colorization\n"
         "\n"
-#if !defined TUXX_USER_TEST_CASE_REPORTER_IS_DEFINED
         "-j|--json                      Produce json output (implies --no-color)\n"
         "\n"
         "--junit [<report-name>]        Produce a JUnit-style report. If <report-name> is provided,\n"
@@ -1804,10 +1805,10 @@ void usage(
         "-d|--delim <delim>             Produces a table of output using the specified column delimiter.\n"
         "                               The delimiter can be any printable single character or '\\t'\n"
         "\n"
-#endif
         "-r|--randomized                Runs tests in randomized order. Ignored for -l|--list.\n"
         "-t|--plain                     Chooses the default plain text reporter even if a custom reporter\n"
         "                               is available\n"
+        "-c|--capture                   Capture stdout/stderr even when using default reporter\n"
         "\n"
        << endl;
 }
@@ -2268,6 +2269,7 @@ int main(
     }
     auto const randomized = is_arg_specified(args, "-r", "--randomized");
     auto const use_emojis = is_arg_specified(args, "-e", "--emojis");
+    auto capture_output = is_arg_specified(args, "-c", "--capture");
 
     auto write_junit = false;
     basic_string<Ch> junit_test_report_name;
@@ -2427,18 +2429,21 @@ int main(
         concurrency = tests.size();
     }
 
-    // Use a temporary output stream to avoid interleaving output with any
-    // potential stdout/stderr writing in the code under test.
+    // Use a temporary output stream if capturing stdout and stderr from code
+    // under test.
     basic_ostringstream<char_type> rpt_os;
 
-    // Test_args needs to be declared here to keep it alive for at least as long as the reporter.
+    // Test_args needs to be declared here to keep it alive for at least as
+    // long as the reporter.
     test_case_reporter_args test_args;
     unique_ptr<test_case_reporter> reporter;
 
     if (!p_reporter) {
         if (write_json) {
+            capture_output = true;  // Force to true
             reporter.reset(new test_case_reporter_json{rpt_os, tests.size(), concurrency});
         } else if (write_junit) {
+            capture_output = true;  // Force to true
             reporter.reset(
                 new test_case_reporter_junit(
                     rpt_os,
@@ -2448,21 +2453,24 @@ int main(
                 )
             );
         } else if (opt_delim) {
+            capture_output = true;  // Force to true
             reporter.reset(new test_case_reporter_delim{rpt_os, static_cast<char_type>(opt_delim)});
         } else {
+            auto& ostrm = (capture_output ? rpt_os : TUXX_REPORT_OSTRM);
             if (!force_use_default_reporter) {
-                test_args.p_report_ostream = &rpt_os;
+                test_args.p_report_ostream = &ostrm;
                 test_args.p_test_cases = tests.data();
                 test_args.n_tests = tests.size();
                 test_args.write_colorized = write_colorized;
                 test_args.use_emojis = use_emojis;
                 test_args.concurrency = concurrency;
+                test_args.capture_output = capture_output;
                 reporter.reset(TUXX_USER_TEST_CASE_REPORTER_INIT(test_args));
             }
             if (!reporter) {
                 reporter.reset(
                     new test_case_reporter_plain_text{
-                        rpt_os,
+                        ostrm,
                         tests,
                         write_colorized,
                         concurrency,
@@ -2475,59 +2483,65 @@ int main(
 
     p_reporter = reporter.get();
 
-    // Setup stdout/stderr redirection for capture...
-    auto redirect_thread_fn = [](
-        ostringstream& oss,
-        int rfd
-    ) {
-        char buf[1000];
-        for (;;) {
-            auto n_read = tuxx_os_read(rfd, buf, sizeof(buf));
-            if (n_read <= 0) {
-                return;
+    int ret{};
+    if (capture_output) {
+        // Setup stdout/stderr redirection for capture...
+        auto redirect_thread_fn = [](
+            ostringstream& oss,
+            int rfd
+        ) {
+            char buf[1000];
+            for (;;) {
+                auto n_read = tuxx_os_read(rfd, buf, sizeof(buf));
+                if (n_read <= 0) {
+                    return;
+                }
+                oss.write(buf, n_read);
             }
-            oss.write(buf, n_read);
-        }
-    };
+        };
 
-    file_desc saved_stdout;
-    file_desc tmp_stdout_r;
-    redirect_output(STDOUT_FILENO, saved_stdout, tmp_stdout_r);
+        file_desc saved_stdout;
+        file_desc tmp_stdout_r;
+        redirect_output(STDOUT_FILENO, saved_stdout, tmp_stdout_r);
 
-    ostringstream stdout_oss;
-    thread stdout_thr{
-        [&stdout_oss, redirect_thread_fn, &tmp_stdout_r]() {
-            redirect_thread_fn(stdout_oss, tmp_stdout_r.fd);
-        }
-    };
+        ostringstream stdout_oss;
+        thread stdout_thr{
+            [&stdout_oss, redirect_thread_fn, &tmp_stdout_r]() {
+                redirect_thread_fn(stdout_oss, tmp_stdout_r.fd);
+            }
+        };
 
-    file_desc saved_stderr;
-    file_desc tmp_stderr_r;
-    redirect_output(STDERR_FILENO, saved_stderr, tmp_stderr_r);
+        file_desc saved_stderr;
+        file_desc tmp_stderr_r;
+        redirect_output(STDERR_FILENO, saved_stderr, tmp_stderr_r);
 
-    ostringstream stderr_oss;
-    thread stderr_thr{
-        [&stderr_oss, redirect_thread_fn, &tmp_stderr_r]() {
-            redirect_thread_fn(stderr_oss, tmp_stderr_r.fd);
-        }
-    };
+        ostringstream stderr_oss;
+        thread stderr_thr{
+            [&stderr_oss, redirect_thread_fn, &tmp_stderr_r]() {
+                redirect_thread_fn(stderr_oss, tmp_stderr_r.fd);
+            }
+        };
 
-    auto ret = run_test_cases(move(tests), *p_reporter, concurrency, randomized);
+        ret = run_test_cases(move(tests), *p_reporter, concurrency, randomized);
 
-    // If we fail to restore stdout/stderr here, there's not really much
-    // that can be done to inform the user other than returning an error.
-    restore_output(STDOUT_FILENO, saved_stdout);
-    stdout_thr.join();
+        // If we fail to restore stdout/stderr here, there's not really much
+        // that can be done to inform the user other than returning an error.
+        restore_output(STDOUT_FILENO, saved_stdout);
+        stdout_thr.join();
 
-    restore_output(STDERR_FILENO, saved_stderr);
-    stderr_thr.join();
+        restore_output(STDERR_FILENO, saved_stderr);
+        stderr_thr.join();
 
-    reporter->finish(
-        detail::to_char_type(stdout_oss.str()),
-        detail::to_char_type(stderr_oss.str())
-    );
+        reporter->finish(
+            detail::to_char_type(stdout_oss.str()),
+            detail::to_char_type(stderr_oss.str())
+        );
 
-    TUXX_REPORT_OSTRM << rpt_os.str() << flush;
+        TUXX_REPORT_OSTRM << rpt_os.str() << "'" << flush;
+    } else {
+        ret = run_test_cases(move(tests), *p_reporter, concurrency, randomized);
+        reporter->finish(string_type{}, string_type{});
+    }
     return ret;
 }
 

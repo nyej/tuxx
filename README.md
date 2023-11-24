@@ -169,6 +169,7 @@ The following command line options are supported by the resulting test executabl
 |`-junit [<report-name>]`|Prints a JUnit-style report or report fragment. If `<report-name>` is specified, a `<testsuites>`-level report is created; otherwise, a `<testsuite>`-level report is created with the assumption the full report will be produced by a script that collects the outputs of several unit test executables from a directory tree|
 |`-d[c]`, `--delim [c]`|Prints a tabular output with `c` as the column delimiter. If not specified, tab is used for `c`|
 |`-t`, `--text`|Chooses the default text reporter even if a custom reporter was provided|
+|`-c`, `--capture`|Captures `stdout`/`stderr` even if the default reporter is being used|
 
 >NOTE: test case ids/numbers will change as test cases are added or removed.
 They are not permanent ids; they are intended to help provide a quick turnaround time when fixing failing test cases or otherwise isolating them.
@@ -182,9 +183,9 @@ The body of the test case is a regular function body and is expected to be added
 |-|-|
 |`test_case(`test_case_name`)`|Declares a test case that accepts no arguments with the name `test_case_name`.|
 |`test_case_f(`fixture_class_or_struct, test_case_name`)`|Declares a test case that uses a user-defined `struct`/`class` `fixture_class_or_struct` whose constructor and destructor works as the `setup`/`teardown`, respectively, if needed. The fixture instance is available within the body of the test case as `fixture`.|
-|`test_case_args_arr(`test_case_name, name_of_array_with_args`)`|Generates a set of test cases, one for each element in the provided array. Each test case will have its own separate id/number so it can be isolated with `-n`, `--number`. The argment is available within the test case as `arg`.|
+|`test_case_args_arr(`test_case_name, name_of_array/container_with_args`)`|Generates a set of test cases, one for each element in the provided array. Each test case will have its own separate id/number so it can be isolated with `-n`, `--number`. The argment is available within the test case as `arg`.|
 |`test_case_args(`test_case_name, arg_type, ...comma-delimited args...`)`|This is the same as `test_case_args_arr`, except the array does not need to be defined prior. This will define the array as `arg_type hidden_name_of_arr[] = {...comma-delimited args};` then call `test_case_args_arr`.|
-|`test_case_args_arr_f(`fixture_class_or_struct, name_of_array_with_args`)`|This is a combination of `test_case_f` and `test_case_args_arr`. The fixture is available within the body of the test case as `fixture` and each argument is available as `arg`.|
+|`test_case_args_arr_f(`fixture_class_or_struct, name_of_array/container_with_args`)`|This is a combination of `test_case_f` and `test_case_args_arr`. The fixture is available within the body of the test case as `fixture` and each argument is available as `arg`.|
 |`test_case_args_f(`fixture_class_or_struct, arg_type ...comma-delimited args...`)`|This is a combination of `test_case_f` and `test_case_args`. The fixture is available within the body of the test case as `fixture` and each argument is available as `arg`.|
 
 ## List of Assertions
@@ -532,6 +533,7 @@ struct test_case_reporter_args {
     test_case_instance const* p_test_cases; // Array of test cases.
     std::size_t n_tests;
     std::size_t concurrency;
+    bool capture_output;        // Informative, no requirement to use. Indicates whether stdout/stderr are being captured.
     bool write_colorized;       // Informative, no requirement to use
     bool use_emojis;            // Informative, no requirement to use
 };

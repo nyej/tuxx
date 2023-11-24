@@ -56,6 +56,9 @@ static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
 
 #include <tuxx.hpp>
 
+using namespace std;
+using namespace nyej::tuxx;
+
 // -----------------------------------------------------------------------------
 // Add some of our test cases here...
 
@@ -71,30 +74,27 @@ test_case(custom_reporter__tc_2) {
 // Definition of our test custom reporter and make_my_test_case_reporter 
 // (again, can be in a separate file)
 
-using namespace std;
-using namespace nyej::tuxx;
-
 namespace {
 
-struct my_test_case_reporter : nyej::tuxx::test_case_reporter {
-    nyej::tuxx::report_ostream_type& os;
-    explicit my_test_case_reporter(nyej::tuxx::report_ostream_type& ostrm) : os{ostrm} {}
+struct my_test_case_reporter : test_case_reporter {
+    report_ostream_type& os;
+    explicit my_test_case_reporter(report_ostream_type& ostrm) : os{ostrm} {}
     void test_case_passed(
         test_case_instance const& tc,
-        std::chrono::steady_clock::duration const& elapsed
+        chrono::steady_clock::duration const& elapsed
     ) override {
         os << tc.name << " P\n";
     }
     void test_case_failed(
         test_case_instance const& tc,
         test_case_failure_error const& err,
-        std::chrono::steady_clock::duration const& elapsed
+        chrono::steady_clock::duration const& elapsed
     ) override {
         os << tc.name << " F\n";
     }
     void end_test_cases(
-        std::chrono::steady_clock::duration const& elapsed,
-        std::vector<test_case_instance> const& failures
+        chrono::steady_clock::duration const& elapsed,
+        vector<test_case_instance> const& failures
     ) override {}
     void finish(
         string_type const& stdout_data,
@@ -106,8 +106,6 @@ struct my_test_case_reporter : nyej::tuxx::test_case_reporter {
 
 // -----------------------------------------------------------------------------
 // Factory function definition (again, can be in a separate file)
-static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
-    nyej::tuxx::test_case_reporter_args const& args
-) {
+static test_case_reporter* make_my_test_case_reporter(test_case_reporter_args const& args) {
     return new my_test_case_reporter{*args.p_report_ostream};
 }
