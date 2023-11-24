@@ -99,18 +99,7 @@ test_case(another_test_case_name) {
 ```
 Assuming everything builds and passes, running the resulting executable will produce the following output with the default reporter and emojis enabled (using the default emojis):
 
-<pre style="background-color:#222">
-[<span style="color:cyan">1</span>] 🧪 <span style="color:yellow">some_test_case_name</span>    ✅ [<span style="color:white">00</span><span style="color:#00f">:</span><span style="color:white">00</span><span style="color:#00f">:</span><span style="color:white">00</span><span style="color:#00f">.</span><span style="color:white">000</span>]
-[<span style="color:cyan">2</span>] 🧪 <span style="color:yellow">another_test_case_name</span> ✅ [<span style="color:white">00</span><span style="color:#00f">:</span><span style="color:white">00</span><span style="color:#00f">:</span><span style="color:white">00</span><span style="color:#00f">.</span><span style="color:white">000</span>]
-
-<span style="color:white">CONCURRENCY:                     1</span>
-<span style="color:white">TOTAL TEST CASES RUN:            2</span>
-<span style="color:white">ASSERTS:                        12</span>
-<span style="color:white">ELAPSED:</span>              <span style="color:white">00</span><span style="color:#00f">:</span><span style="color:white">00</span><span style="color:#00f">:</span><span style="color:white">00</span><span style="color:#00f">.</span><span style="color:white">000</span>
-<span style="color:#0f0">PASSED</span>:                          2
-
-😎
-</pre>
+![Basic-Output](./img/basic-output.png)
 
 Notice the cyan number in square brackets to the left of the listed test cases.
 This is the test case's id/number and is used to help focus on certain tests while in development.
