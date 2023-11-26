@@ -33,25 +33,9 @@ SOFTWARE.
 #include <iostream>
 
 // -----------------------------------------------------------------------------
-// Forward declarations for things we need before including tuxx...
-// NOTE: this part and the implementation of our custom test reporter can be
-//       in a separate file...
-
-namespace nyej {
-namespace tuxx {
-    struct test_case_reporter;
-    struct test_case_reporter_args;
-}
-}
-
-static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
-    nyej::tuxx::test_case_reporter_args const&
-);
-
-// -----------------------------------------------------------------------------
 // Set required #defines and include tuxx...
 
-#define TUXX_USER_TEST_CASE_REPORTER_INIT(args) make_my_test_case_reporter(args)
+#define TUXX_DEFINE_CUSTOM_REPORTER
 #define TUXX_DEFINE_TEST_MAIN
 
 #include <tuxx.hpp>
@@ -106,6 +90,6 @@ struct my_test_case_reporter : test_case_reporter {
 
 // -----------------------------------------------------------------------------
 // Factory function definition (again, can be in a separate file)
-static test_case_reporter* make_my_test_case_reporter(test_case_reporter_args const& args) {
+test_case_reporter* tuxx_make_custom_reporter(test_case_reporter_args const& args) {
     return new my_test_case_reporter{*args.p_report_ostream};
 }

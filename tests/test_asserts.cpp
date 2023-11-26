@@ -30,6 +30,13 @@ SOFTWARE.
 using namespace std;
 using namespace nyej::tuxx;
 
+// We're not #define'ing TUXX_DEFINE_TEST_MAIN here so we need to add an
+// implementation for this
+std::vector<test_case_instance>& nyej::tuxx::detail::tests__() {
+    static std::vector<test_case_instance> tests;
+    return tests;
+}
+
 struct testing_assert_info {
     test_case_instance tc;
     char const* file;
@@ -99,7 +106,6 @@ struct testing_reporter : test_case_reporter {
         testing_assert(rpt.asserts[idx].line == line_no); \
         testing_assert(rpt.asserts[idx].msg == msg_expr); \
     } while (false)
-
 
 template <typename Ch>
 int testing_main(

@@ -33,25 +33,9 @@ SOFTWARE.
 #include <iostream>
 
 // -----------------------------------------------------------------------------
-// Forward declarations for things we need before including tuxx...
-// NOTE: this part and the implementation of our custom test reporter can be
-//       in a separate file...
-
-namespace nyej {
-namespace tuxx {
-    struct test_case_reporter;
-    struct test_case_reporter_args;
-}
-}
-
-static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
-    nyej::tuxx::test_case_reporter_args const&
-);
-
-// -----------------------------------------------------------------------------
 // Set required #defines and include tuxx...
 
-#define TUXX_USER_TEST_CASE_REPORTER_INIT(args) make_my_test_case_reporter(args)
+#define TUXX_DEFINE_CUSTOM_REPORTER
 #define TUXX_DEFINE_TEST_MAIN
 
 #include <tuxx.hpp>
@@ -72,26 +56,23 @@ test_case(custom_reporter__tc_2) {
 
 // -----------------------------------------------------------------------------
 // Factory function definition (again, can be in a separate file)
-static test_case_reporter* make_my_test_case_reporter(test_case_reporter_args const& args) {
-    auto& os = *args.p_report_ostream;
-    return new test_case_reporter_fns(
-        nullptr,
-        nullptr,
-        nullptr,
-        [&os](
-            test_case_instance const& tc,
-            chrono::steady_clock::duration const& elapsed
-        ) {
-            os << tc.name << " P\n";
-        },
-        [&os](
-            test_case_instance const& tc,
-            test_case_failure_error const& err,
-            chrono::steady_clock::duration const& elapsed
-        ) {
-            os << tc.name << " F\n";
-        },
-        nullptr,
-        nullptr
-    );
+test_case_reporter* tuxx_make_custom_reporter(test_case_reporter_args const& args) {
+    // Only handling test case pass/fail here.
+    return test_case_reporter_fns_builder()
+        .handle_test_case_passed(
+            [&args](
+                test_case_instance const& tc,
+                chrono::steady_clock::duration const& elapsed
+            ) {
+                *args.p_report_ostream << tc.name << " P\n";
+            }
+        ).handle_test_case_failed(
+            [&args](
+                test_case_instance const& tc,
+                test_case_failure_error const& err,
+                chrono::steady_clock::duration const& elapsed
+            ) {
+                *args.p_report_ostream << tc.name << " F\n";
+            }
+        ).build();
 }

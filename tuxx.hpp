@@ -74,6 +74,10 @@ SOFTWARE.
     #define tuxx_os_read ::_read
     #define tuxx_os_close ::_close
 
+    inline int tuxx_os_isatty(int) {
+        return false;
+    }
+
     // Due to issues with include order and windows.h, we assume the user has
     // included windows.h the way they need to prior to including this header.
     inline
@@ -91,6 +95,7 @@ SOFTWARE.
     #define tuxx_os_pipe ::pipe
     #define tuxx_os_read ::read
     #define tuxx_os_close ::close
+    #define tuxx_os_isatty ::isatty
 #endif
 
 #if ( \
@@ -203,10 +208,8 @@ std::string const& to_char(std::string const& s) {
         return to_char_type(s.c_str());
     }
 
-    template <typename Ch> inline
-    typename std::enable_if<sizeof(Ch) == sizeof(wchar_t), std::string>::type to_char(
-        Ch const* s
-    ) {
+    inline
+    std::string to_char(wchar_t const* s) {
         using namespace std;
         mbstate_t st{};
         auto p_c_str = reinterpret_cast<wchar_t const*>(s);
@@ -219,6 +222,11 @@ std::string const& to_char(std::string const& s) {
             return "?bad conversion?";  // Should not happen.
         }
         return ret;
+    }
+
+    inline
+    std::string to_char(std::wstring const& s) {
+        return to_char(s.c_str());
     }
 
     }
@@ -367,10 +375,10 @@ struct test_case_multi_adder {
 std::vector<test_case_instance>& tests__();
 
 #if defined(TUXX_DEFINE_TEST_MAIN)
-    std::vector<test_case_instance>& tests__() {
-        static std::vector<test_case_instance> tests;
-        return tests;
-    }
+std::vector<test_case_instance>& tests__() {
+    static std::vector<test_case_instance> tests;
+    return tests;
+}
 #endif
 
 template <typename Ch> inline
@@ -578,6 +586,67 @@ struct test_case_reporter_fns : test_case_reporter {
         if (finish_fn) {
             finish_fn(stdout_data, stderr_data);
         }
+    }
+};
+
+struct test_case_reporter_fns_builder {
+    test_case_reporter_fns::start_fn_type start_fn;
+    test_case_reporter_fns::test_case_starting_fn_type test_case_starting_fn;
+    test_case_reporter_fns::test_case_assert_fn_type test_case_assert_fn;
+    test_case_reporter_fns::test_case_passed_fn_type test_case_passed_fn;
+    test_case_reporter_fns::test_case_failed_fn_type test_case_failed_fn;
+    test_case_reporter_fns::end_test_cases_fn_type end_test_cases_fn;
+    test_case_reporter_fns::finish_fn_type finish_fn;
+
+    test_case_reporter_fns_builder& handle_start(test_case_reporter_fns::start_fn_type f) {
+        start_fn = std::move(f);
+        return *this;
+    }
+    test_case_reporter_fns_builder& handle_test_case_starting(
+        test_case_reporter_fns::test_case_starting_fn_type f
+    ) {
+        test_case_starting_fn = std::move(f);
+        return *this;
+    }
+    test_case_reporter_fns_builder& handle_test_case_assert(
+        test_case_reporter_fns::test_case_assert_fn_type f
+    ) {
+        test_case_assert_fn = std::move(f);
+        return *this;
+    }
+    test_case_reporter_fns_builder& handle_test_case_passed(
+        test_case_reporter_fns::test_case_passed_fn_type f
+    ) {
+        test_case_passed_fn = std::move(f);
+        return *this;
+    }
+    test_case_reporter_fns_builder& handle_test_case_failed(
+        test_case_reporter_fns::test_case_failed_fn_type f
+    ) {
+        test_case_failed_fn = std::move(f);
+        return *this;
+    }
+    test_case_reporter_fns_builder& handle_end_test_cases(
+        test_case_reporter_fns::end_test_cases_fn_type f
+    ) {
+        end_test_cases_fn = std::move(f);
+        return *this;
+    }
+    test_case_reporter_fns_builder& handle_finish(test_case_reporter_fns::finish_fn_type f) {
+        finish_fn = std::move(f);
+        return *this;
+    }
+
+    test_case_reporter* build() {
+        return new test_case_reporter_fns{
+            start_fn,
+            test_case_starting_fn,
+            test_case_assert_fn,
+            test_case_passed_fn,
+            test_case_failed_fn,
+            end_test_cases_fn,
+            finish_fn
+        };
     }
 };
 
@@ -985,8 +1054,11 @@ struct test_case_reporter_fns : test_case_reporter {
 #if !defined(TUXX_COLOR_FILE_REF)
     #define TUXX_COLOR_FILE_REF TUXX_TST_NS_PREFIX color::fg_gray
 #endif
-#if !defined(TUXX_USER_TEST_CASE_REPORTER_INIT)
-    #define TUXX_USER_TEST_CASE_REPORTER_INIT(args) nullptr
+
+#if defined(TUXX_DEFINE_CUSTOM_REPORTER)
+::nyej::tuxx::test_case_reporter* tuxx_make_custom_reporter(
+    ::nyej::tuxx::test_case_reporter_args const&
+);
 #endif
 
 namespace nyej {
@@ -1035,7 +1107,7 @@ report_ostream_type& write_idx(
         (total_count < 1000000) ? 6 :
         (total_count < 10000000) ? 7 : 10;
     write_with_color(os, "[", TUXX_COLOR_SQ_BR, color_enabled);
-    basic_ostringstream<char_type> oss;
+    ostringstream_type oss;
     oss << setw(field_width) << idx;
     write_with_color(os, oss.str(), TUXX_COLOR_TEST_ID, color_enabled);
     return write_with_color(os, "]", TUXX_COLOR_SQ_BR, color_enabled);
@@ -1048,7 +1120,7 @@ report_ostream_type& write_test_case_name(
     std::size_t width = 0
 ) {
     using namespace std;
-    basic_ostringstream<char_type> oss;
+    ostringstream_type oss;
     write_with_color(oss, tc.name, TUXX_COLOR_TEST_NAME, color_enabled);
     if (!tc.arg.empty()) {
         write_with_color(oss, "(", TUXX_COLOR_PAREN, color_enabled);
@@ -1066,6 +1138,21 @@ report_ostream_type& write_test_case_name(
         os << setw(width) << setfill(TUXX_STR_LIT(' ')) << left;
     }
     return os << str;
+}
+
+report_ostream_type& write_test_case_line_prefix(
+    test_case_instance const& tc,
+    report_ostream_type& os,
+    size_t max_test_case_id,
+    bool colorized,
+    bool use_emojis,
+    size_t width = 0
+) {
+    write_idx(tc.idx, max_test_case_id, os, colorized) << ' ';
+    if (use_emojis) {
+        os << TUXX_EMOJI_PREFIX << ' ';
+    }
+    return write_test_case_name(os, tc, colorized, width) << std::flush;
 }
 
 template <typename Duration>
@@ -1113,7 +1200,6 @@ report_ostream_type& write_duration(
     return os;
 }
 
-inline
 std::string get_time_stamp(std::chrono::system_clock::time_point const& pt) {
     using namespace std;
     using namespace std::chrono;
@@ -1165,7 +1251,14 @@ struct test_case_reporter_plain_text : test_case_reporter {
     }
     void test_case_starting(test_case_instance const& tc) override {
         if (concurrency == 1) {
-            write_test_case_line_prefix(tc);
+            write_test_case_line_prefix(
+                tc,
+                os,
+                max_test_case_id,
+                do_write_color,
+                use_emojis,
+                max_test_case_name_len
+            );
         }
     }
     void test_case_assert(
@@ -1184,7 +1277,14 @@ struct test_case_reporter_plain_text : test_case_reporter {
         std::chrono::steady_clock::duration const& elapsed
     ) override {
         if (concurrency > 1) {
-            write_test_case_line_prefix(tc);
+            write_test_case_line_prefix(
+                tc,
+                os,
+                max_test_case_id,
+                do_write_color,
+                use_emojis,
+                max_test_case_name_len
+            );
         }
         os << ' ';
         write_passed(os);
@@ -1198,13 +1298,20 @@ struct test_case_reporter_plain_text : test_case_reporter {
     ) override {
         using namespace std;
         if (concurrency > 1) {
-            write_test_case_line_prefix(tc);
+            write_test_case_line_prefix(
+                tc,
+                os,
+                max_test_case_id,
+                do_write_color,
+                use_emojis,
+                max_test_case_name_len
+            );
         }
         os << ' ';
         write_failed(os);
         os << ' ';
         write_duration(os, elapsed, do_write_color) << '\n';
-        basic_ostringstream<char_type> oss;
+        ostringstream_type oss;
         oss << err.file << ':' << err.line;
         write_with_color(os << '\t', oss.str(), TUXX_COLOR_FILE_REF, do_write_color);
         write_with_color(os << '\t', err.detail, TUXX_COLOR_FAIL, do_write_color)
@@ -1239,7 +1346,14 @@ struct test_case_reporter_plain_text : test_case_reporter {
                 << ":\n";
             for (auto const& tc : failures) {
                 os << '\t';
-                write_test_case_line_prefix(tc);
+                write_test_case_line_prefix(
+                    tc,
+                    os,
+                    max_test_case_id,
+                    do_write_color,
+                    use_emojis,
+                    max_test_case_name_len
+                );
                 if (use_emojis) {
                     os << ' ';
                     write_failed(os);
@@ -1264,14 +1378,6 @@ struct test_case_reporter_plain_text : test_case_reporter {
     }
 
 private:
-    void write_test_case_line_prefix(test_case_instance const& tc) {
-        write_idx(tc.idx, max_test_case_id, os, do_write_color) << ' ';
-        if (use_emojis) {
-            os << TUXX_EMOJI_PREFIX << ' ';
-        }
-        write_test_case_name(os, tc, do_write_color, max_test_case_name_len) << std::flush;
-    }
-
     report_ostream_type& write_passed(
         report_ostream_type& os,
         char_type const* pass_emoji = TUXX_EMOJI_PASSED,
@@ -1514,7 +1620,7 @@ private:
         report_ostream_type& os,
         S const& s
     ) {
-        std::basic_ostringstream<char_type> oss;
+        ostringstream_type oss;
         oss << s;
         return escape(os, oss.str());
     }
@@ -1704,7 +1810,7 @@ private:
         report_ostream_type& os,
         S const& s
     ) {
-        std::basic_ostringstream<char_type> oss;
+        ostringstream_type oss;
         oss << s;
         return escape(os, oss.str());
     }
@@ -1739,9 +1845,8 @@ private:
     }
 };
 
-template <typename Ch>
 void usage(
-    std::basic_string<Ch> const& prog_name,
+    string_type const& prog_name,
     report_ostream_type& os
 ) {
     using namespace std;
@@ -1810,6 +1915,8 @@ void usage(
         "                               is available\n"
         "-c|--capture                   Capture stdout/stderr even when using default reporter\n"
         "\n"
+        "Short form arguments except 'm', 'n', 'd', and 'p' (if a value is provided) can be combined. For\n"
+        "example, '-epr' would enable emojis, run test cases in parallel and random shuffle the them."
        << endl;
 }
 
@@ -1819,6 +1926,7 @@ void to_lower(string_type& s) {
     }
 }
 
+// Needs to be a template because it can be called when Ch differs from char_type.
 template <typename Ch>
 std::vector<std::basic_string<Ch>> split_delim(
     std::basic_string<Ch> const& s,
@@ -1852,8 +1960,7 @@ std::vector<std::basic_string<Ch>> split_delim(
 }
 
 // If zero is returned, the resulting delimiter is empty or longer than one character.
-template <typename Ch>
-char_type parse_delim(std::basic_string<Ch> const& s) {
+char_type parse_delim(string_type const& s) {
     using namespace std;
     if (s.length() == 1) {
         return static_cast<char_type>(s[0]);
@@ -1866,13 +1973,10 @@ char_type parse_delim(std::basic_string<Ch> const& s) {
     return 0;
 }
 
-template <typename Ch>
-std::pair<std::size_t, std::size_t> read_number_range(
-    std::basic_string<Ch> const& num_pair
-) {
+std::pair<std::size_t, std::size_t> read_number_range(string_type const& num_pair) {
     using namespace std;
 
-    basic_istringstream<Ch> iss{num_pair};
+    basic_istringstream<char_type> iss{num_pair};
     size_t idx_low = 1;
 
     auto ch = iss.peek();
@@ -1885,13 +1989,13 @@ std::pair<std::size_t, std::size_t> read_number_range(
                     + detail::to_char(num_pair) + "'"
             };
         }
-        return {idx_low, idx_high_excl};
+        return make_pair(idx_low, idx_high_excl);
     }
 
     iss >> idx_low;
 
     if (iss.eof() && iss.fail()) {
-        throw std::runtime_error{
+        throw runtime_error{
             "Invalid test number match expression for -n|--number: '"
                 + detail::to_char(num_pair) + "'"
         };
@@ -1903,13 +2007,13 @@ std::pair<std::size_t, std::size_t> read_number_range(
     }
 
     ch = iss.peek();
-    if (ch == basic_istringstream<Ch>::traits_type::eof()) {
+    if (ch == istringstream::traits_type::eof()) {
         // Only have a single number at this point.
-        return {idx_low, idx_low + 1};
+        return make_pair(idx_low, idx_low + 1);
     }
 
     if (ch != '-')  {
-        throw std::runtime_error{
+        throw runtime_error{
             "Invalid test number match expression for -n|--number: '"
                 + detail::to_char(num_pair) + "'"
         };
@@ -1917,86 +2021,95 @@ std::pair<std::size_t, std::size_t> read_number_range(
 
     iss.get();
 
-    auto idx_high_excl = numeric_limits<std::size_t>::max();
+    auto idx_high_excl = numeric_limits<size_t>::max();
     iss >> idx_high_excl;
-    return {idx_low, idx_high_excl};
+    return make_pair(idx_low, idx_high_excl);
 }
 
-template <typename Ch> inline
-std::basic_string<Ch> get_string_as(char const* s) {
-    std::basic_ostringstream<Ch> oss;
-    if (s) {
-        oss << s;
-    }
-    return oss.str();
-}
-
-template <typename Ch>
-typename std::vector<std::basic_string<Ch>>::iterator find_arg(
-    std::vector<std::basic_string<Ch>>& args,
-    char const* id_1,
-    char const* id_2 = nullptr
+// .first=true: short arg was matched.
+std::pair<bool, std::vector<string_type>::iterator> find_arg(
+    std::vector<string_type>& args,
+    char id_short,
+    std::string id_lng = ""
 ) {
     using namespace std;
-    auto const id_1_s = get_string_as<Ch>(id_1);
-    auto const id_2_s = get_string_as<Ch>(id_2);
-    for (auto it = args.begin(); it != args.end(); ++it) {
-        if ((*it == id_1_s) || ((!id_2_s.empty() && (*it == id_2_s)))) {
-            return it;
+    if (!args.empty()) {
+        auto const id_short_ch = static_cast<char_type>(id_short);
+        auto const id_long = detail::to_char_type(id_lng);
+        for (auto it = args.begin() + 1; it != args.end(); ++it) {
+            auto& arg = *it;
+            if (arg.length() < 2) {
+                continue;
+            }
+            if (id_short_ch && (arg[1] != '-')) {
+                // Short-form argument. Check to see if id_short_ch is somewhere in the argument.
+                auto const idx_ch = arg.find(id_short_ch, 1);
+                if (idx_ch != string_type::npos) {
+                    return make_pair(true, it);
+                }
+            }
+            if ((!id_long.empty() && (*it == id_long))) {
+                return make_pair(false, it);
+            }
         }
     }
-    return args.end();
+    return make_pair(false, args.end());
 }
 
-template <typename Ch>
-bool is_arg_specified(
-    std::vector<std::basic_string<Ch>>& args,
-    char const* id_1,
-    char const* id_2 = nullptr
+void remove_arg(
+    char id,
+    std::vector<string_type>& args,
+    std::vector<string_type>::iterator it
 ) {
-    auto const it = find_arg(args, id_1, id_2);
-    if (it != args.end()) {
+    auto const id_c = static_cast<char_type>(id);
+    auto& arg = *it;
+    for (auto idx = arg.find(id_c, 1); idx != string_type::npos; idx = arg.find(id_c, 1)) {
+        arg.erase(idx, 1);
+    }
+    if (arg == TUXX_STR_LIT("-")) {
         args.erase(it);
+    }
+}
+
+bool is_arg_specified(
+    std::vector<string_type>& args,
+    char id_short,
+    char const* id_long = nullptr
+) {
+    auto const res = find_arg(args, id_short, id_long);
+    if (res.second != args.end()) {
+        if (res.first) {
+            remove_arg(id_short, args, res.second);
+        } else {
+            args.erase(res.second);
+        }
         return true;
     }
     return false;
 }
 
-template <typename Ch>
-std::pair<bool, std::basic_string<Ch>> get_arg_value(
-    std::vector<std::basic_string<Ch>>& args,
-    char const* id_shrt,
-    char const* id_lng = nullptr
+std::pair<bool, string_type> get_arg_value(
+    std::vector<string_type>& args,
+    char id_short,
+    char const* id_long = nullptr
 ) {
     using namespace std;
-    auto const id_short = get_string_as<Ch>(id_shrt);
-    auto const id_long = get_string_as<Ch>(id_lng);
-    for (auto it = args.begin(); it != args.end(); ++it) {
-        auto const& arg = *it;
-        auto is_match = false;
-        if (!id_short.empty() && (arg.find(id_short) == 0)) {
-            if (arg.length() > id_short.length()) {
-                // Allow for the value to be in the argument (i.e. -p10)
-                auto const ret = make_pair(true, basic_string<Ch>{arg.substr(id_short.length())});
-                args.erase(it);
-                return ret;
-            }
-            is_match = true;
+    auto const res = find_arg(args, id_short, id_long);
+    if (res.second != args.end()) {
+        if (res.first) {
+            auto const ret = make_pair(true, res.second->substr(2));
+            args.erase(res.second);
+            return ret;
         }
-        if (!is_match && !id_long.empty() && (arg == id_long)) {
-            is_match = true;
+        auto const it_value = args.erase(res.second);
+        if (it_value >= args.end()) {
+            return make_pair(true, string_type{});
         }
-        if (is_match) {
-            auto const it_value = args.erase(it);
-            if (it_value >= args.end()) {
-                return make_pair(true, std::basic_string<Ch>{});
-            }
-            basic_string<Ch> const value{*it_value};
-            args.erase(it_value);
-            return make_pair(true, value);
-        }
+        string_type const value{*it_value};
+        args.erase(it_value);
+        return make_pair(true, value);
     }
-    return make_pair(false, std::basic_string<Ch>{});
+    return make_pair(false, string_type{});
 }
 
 bool run_test_case(
@@ -2048,7 +2161,7 @@ bool run_test_case(
 }
 
 int run_test_cases(
-    std::vector<test_case_instance>&& tests,
+    std::vector<test_case_instance>& tests,
     test_case_reporter& rep,
     std::size_t concurrency,
     bool randomized
@@ -2089,6 +2202,7 @@ int run_test_cases(
             }
         };
         vector<thread> workers;
+        workers.reserve(n_workers);
         for (auto i = 0u; i < n_workers; ++i) {
             workers.emplace_back(worker_fn);
         }
@@ -2106,20 +2220,18 @@ int run_test_cases(
 void list_tests(
     std::vector<test_case_instance> const& tests,
     report_ostream_type& os,
-    bool color_enabled
+    bool color_enabled,
+    bool use_emojis
 ) {
-    using namespace std;
     for (auto const& tc : tests) {
         // Listing doesn't currently use a reporter.
-        write_idx(tc.idx, tests.size(), os, color_enabled) << ' ';
-        write_test_case_name(os, tc, color_enabled) << endl;
+        write_test_case_line_prefix(tc, os, tests.size() - 1, color_enabled, use_emojis) << '\n';
     }
 }
 
-template <typename Ch>
 bool does_test_case_match_names(
     test_case_instance const& tc,
-    std::vector<std::basic_string<Ch>> const& matches
+    std::vector<string_type> const& matches
 ) {
     using namespace std;
     auto tc_name_lower{tc.name};
@@ -2127,11 +2239,11 @@ bool does_test_case_match_names(
     return find_if(
         matches.begin(),
         matches.end(),
-        [&tc_name_lower](std::basic_string<Ch> const& match) -> bool {
+        [&tc_name_lower](string_type const& match) -> bool {
             if (match.length() > tc_name_lower.length()) {
                 return false;
             }
-            string_type match_lower{detail::to_char_type(match)};
+            auto match_lower = match;
             to_lower(match_lower);
             // Starts-with
             for (auto i = 0u; i < match.length(); ++i) {
@@ -2144,17 +2256,16 @@ bool does_test_case_match_names(
     ) != matches.end();
 }
 
-template <typename Ch>
 bool does_test_case_match_number_exprs(
     test_case_instance const& tc,
-    std::vector<std::basic_string<Ch>> const& num_exprs
+    std::vector<string_type> const& num_exprs
 ) {
     using namespace std;
     auto const idx = tc.idx + 1;
     return find_if(
         num_exprs.begin(),
         num_exprs.end(),
-        [idx](std::basic_string<Ch> const& num_expr) -> bool {
+        [idx](string_type const& num_expr) -> bool {
             auto const res = read_number_range(num_expr);
             return (idx >= res.first) && (idx < res.second);
         }
@@ -2194,95 +2305,362 @@ private:
     file_desc& operator=(file_desc const&);
 };
 
+struct redirect_output_deps {
+    std::function<
+        void(
+            std::ostream&,
+            std::wostream&
+        )
+    > flush_fn;
+    std::function<int(int)> dup_fn;
+    std::function<
+        int(
+            int,
+            int
+        )
+    > dup2_fn;
+    std::function<int(int*)> pipe_fn;
+    static redirect_output_deps make_default() {
+        redirect_output_deps ret;
+        ret.flush_fn = [](
+            std::ostream& os,
+            std::wostream& wos
+        ) {
+            os.flush();
+            wos.flush();
+        };
+        ret.dup_fn = tuxx_os_dup;
+        ret.dup2_fn = tuxx_os_dup2;
+        ret.pipe_fn = tuxx_os_pipe;
+        return ret;
+    }
+};
+
+template <typename FileDescType>
 void redirect_output(
     int fd,
-    file_desc& out_saved,
-    file_desc& out_tmp
+    FileDescType& out_saved,
+    FileDescType& out_tmp,
+    redirect_output_deps const& deps = redirect_output_deps::make_default()
 ) {
     using namespace std;
     auto const is_stdout = fd == STDOUT_FILENO;
     string const name = is_stdout ? "stdout" : "stderr";
     if (is_stdout) {
-        cout << flush;
-        wcout << flush;
+        deps.flush_fn(cout, wcout);
     } else {
-        cerr << flush;
-        wcerr << flush;
+        deps.flush_fn(cerr, wcerr);
     }
-    out_saved.attach(name + "-saved", tuxx_os_dup(fd));
+    out_saved.attach(name + "-saved", deps.dup_fn(fd));
     if (out_saved.fd < 0) {
         throw runtime_error{out_saved.name + " - failed to dup descriptor"};
     }
     int pipe_fds[2];
-    if (tuxx_os_pipe(pipe_fds) < 0) {
+    if (deps.pipe_fn(pipe_fds) < 0) {
         throw runtime_error{name + " - failed to create redirection pipe"};
     }
     out_tmp.attach(name + "-r", pipe_fds[0]);
-    file_desc w{name + "-w", pipe_fds[1]};
-    if (tuxx_os_dup2(w.fd, fd) < 0) {
+    FileDescType w{name + "-w", pipe_fds[1]};
+    if (deps.dup2_fn(w.fd, fd) < 0) {
         throw runtime_error{w.name + " - failed to dup2 descriptor"};
     }
 }
 
+template <typename FileDescType>
 void restore_output(
     int fd,
-    file_desc& saved
+    FileDescType& saved,
+    redirect_output_deps const& deps = redirect_output_deps::make_default()
 ) {
     using namespace std;
     if (fd == STDOUT_FILENO) {
-        cout << flush;
-        wcout << flush;
+        deps.flush_fn(cout, wcout);
     } else {
-        cerr << flush;
-        wcerr << flush;
+        deps.flush_fn(cerr, wcerr);
     }
-    if (tuxx_os_dup2(saved.fd, fd) < 0) {
+    if (deps.dup2_fn(saved.fd, fd) < 0) {
         throw runtime_error{saved.name + " - failed to restore original descriptor"};
     }
     saved.release();
 }
 
-template <typename Ch>
+struct with_redirection_result {
+    int status{};
+    string_type stdout;
+    string_type stderr;
+};
+
+template <
+    typename ThreadType,
+    typename FileDescType
+>
+struct with_redirection_deps {
+    std::function<
+        ssize_t(
+            int,
+            void*,
+            std::size_t
+        )
+    > read_fn;
+    std::function<
+        std::ostream&(
+            std::ostream&,
+            char const*,
+            std::streamsize
+        )
+    > write_fn;
+    std::function<
+        void(
+            int,
+            FileDescType&,
+            FileDescType&
+        )
+    > redirect_output_fn;
+    std::function<
+        void(
+            int,
+            FileDescType&
+        )
+    > restore_output_fn;
+    std::function<ThreadType(std::function<void()>)> create_thread_fn;
+    std::function<void(ThreadType&)> join_thread_fn;
+    static with_redirection_deps make_default() {
+        with_redirection_deps ret;
+        ret.read_fn = tuxx_os_read;
+        ret.write_fn = [](
+            std::ostream& os,
+            char const* data,
+            std::streamsize n
+        ) -> std::ostream& {
+            return os.write(data, n);
+        };
+        ret.redirect_output_fn = [](
+            int fd,
+            FileDescType& out_saved,
+            FileDescType& out_tmp
+        ) {
+            return redirect_output(fd, out_saved, out_tmp);
+        };
+        ret.restore_output_fn = [](
+            int fd,
+            FileDescType& saved
+        ) {
+            return restore_output(fd, saved);
+        };
+        ret.create_thread_fn = [](std::function<void()> f) { return ThreadType{std::move(f)}; };
+        ret.join_thread_fn = [](ThreadType& t) { t.join(); };
+        return ret;
+    }
+};
+
+template <
+    typename ThreadType,
+    typename FileDescType
+>
+with_redirection_result with_redirection_t(
+    std::function<int()> const& f,
+    with_redirection_deps<ThreadType, FileDescType> const& deps =
+        with_redirection_deps<ThreadType, FileDescType>::make_default()
+) {
+    using namespace std;
+
+    // Setup stdout/stderr redirection for capture...
+    auto redirect_thread_fn = [&deps](
+        ostringstream& oss,
+        int rfd
+    ) {
+        char buf[1000];
+        for (;;) {
+            auto n_read = deps.read_fn(rfd, buf, sizeof(buf));
+            if (n_read <= 0) {
+                return;
+            }
+            deps.write_fn(oss, buf, n_read);
+        }
+    };
+
+    FileDescType saved_stdout;
+    FileDescType tmp_stdout_r;
+    deps.redirect_output_fn(STDOUT_FILENO, saved_stdout, tmp_stdout_r);
+
+    ostringstream stdout_oss;
+    ThreadType stdout_thr{
+        [&stdout_oss, redirect_thread_fn, &tmp_stdout_r]() {
+            redirect_thread_fn(stdout_oss, tmp_stdout_r.fd);
+        }
+    };
+
+    FileDescType saved_stderr;
+    FileDescType tmp_stderr_r;
+    deps.redirect_output_fn(STDERR_FILENO, saved_stderr, tmp_stderr_r);
+
+    ostringstream stderr_oss;
+    ThreadType stderr_thr{
+        [&stderr_oss, redirect_thread_fn, &tmp_stderr_r]() {
+            redirect_thread_fn(stderr_oss, tmp_stderr_r.fd);
+        }
+    };
+
+    with_redirection_result ret;
+    ret.status = f();
+
+    // If we fail to restore stdout/stderr here, there's not really much
+    // that can be done to inform the user other than returning an error.
+    deps.restore_output_fn(STDOUT_FILENO, saved_stdout);
+    deps.join_thread_fn(stdout_thr);
+
+    deps.restore_output_fn(STDERR_FILENO, saved_stderr);
+    deps.join_thread_fn(stderr_thr);
+
+    ret.stdout = detail::to_char_type(stdout_oss.str());
+    ret.stderr = detail::to_char_type(stderr_oss.str());
+    
+    return ret;
+}
+
+with_redirection_result with_redirection(
+    std::function<int()> const& f,
+    with_redirection_deps<std::thread, file_desc> const& deps =
+        with_redirection_deps<std::thread, file_desc>::make_default()
+) {
+    return with_redirection_t<std::thread, file_desc>(f, deps);
+}
+
+void check_args(std::vector<string_type> const& args) {
+    using namespace std;
+    for (auto idx_arg = 1u; idx_arg < args.size(); ++idx_arg) {
+        auto const& arg = args[idx_arg];
+        if ((arg.length() < 2) || (arg[0] != '-')) {
+            throw invalid_argument{"bad argument: '" + detail::to_char(arg) + "'"};
+        }
+        if (arg[1] == '-') {
+            continue;   // Long-form argument
+        }
+        auto const idx_ch = arg.find_first_not_of(TUXX_STR_LIT("cehljprt"), 1);
+        if (idx_ch != string_type::npos) {
+            throw invalid_argument{
+                string{"unrecognized argument '"} +
+                    static_cast<char>(arg[idx_ch]) +
+                    "' or argument cannot be combined with other arguments"
+            };
+        }
+    }
+}
+
+struct main_deps {
+    test_case_reporter* p_reporter{};
+    std::function<
+        void(
+            string_type const&,
+            std::basic_ostream<char_type>& os
+        )
+    > usage_fn;
+    std::function<void(std::vector<string_type> const&)> check_args_fn;
+    std::function<
+        void(
+            std::vector<test_case_instance> const&,
+            report_ostream_type&,
+            bool,
+            bool
+        )
+    > list_tests_fn;
+    std::function<
+        bool(
+            std::vector<string_type>&,
+            char,
+            char const*
+        )
+    > is_arg_specified_fn;
+    std::function<
+        std::pair<bool, string_type>(
+            std::vector<string_type>&,
+            char,
+            char const*
+        )
+    > get_arg_value_fn;
+    std::function<unsigned int()> get_hardware_concurrency_fn;
+    std::function<int(int)> isatty_fn;
+    std::function<
+        with_redirection_result(std::function<int()> const&)
+    > with_redirection_fn;
+    std::function<
+        int(
+            std::vector<test_case_instance>&,
+            test_case_reporter&,
+            size_t,
+            bool
+        )
+    > run_test_cases_fn;
+
+    static main_deps make_default() {
+        main_deps ret;
+        ret.usage_fn = usage;
+        ret.check_args_fn = check_args;
+        ret.list_tests_fn = list_tests;
+        ret.is_arg_specified_fn = is_arg_specified;
+        ret.get_arg_value_fn = get_arg_value;
+        ret.isatty_fn = tuxx_os_isatty;
+        ret.with_redirection_fn = [](std::function<int()> const& f) {
+            return with_redirection(f);
+        };
+        ret.run_test_cases_fn = run_test_cases;
+        ret.get_hardware_concurrency_fn = [] { return std::thread::hardware_concurrency(); };
+        return ret;
+    }
+};
+
 int main(
-    std::vector<std::basic_string<Ch>>& args,
-    std::vector<test_case_instance>&& tests,
-    test_case_reporter* p_reporter = nullptr
+    std::vector<string_type>& args,
+    std::vector<test_case_instance>& tests,
+    report_ostream_type& out_strm,
+    report_ostream_type& err_strm,
+    main_deps const& deps = main_deps::make_default()
 ) {
     using namespace std;
     using namespace tuxx;
 
-    if (is_arg_specified(args, "-h", "--help")) {
-        usage(args[0], TUXX_REPORT_OSTRM);
-        return 0;
-    }
-    auto write_colorized = !is_arg_specified(args, "--no-color");
-    if (is_arg_specified(args, "-l", "--list")) {
-        list_tests(tests, TUXX_REPORT_OSTRM, write_colorized);
-        return 0;
-    }
-
-    auto const write_json = is_arg_specified(args, "-j", "--json");
-    auto const force_use_default_reporter = is_arg_specified(args, "-t", "--text");
-    if (force_use_default_reporter && write_json) {
-        TUXX_ERROR_OSTRM << "ERROR: cannot specify both the default and json output.\n" ;
+    try {
+        deps.check_args_fn(args);
+    } catch (exception const& ex) {
+        err_strm << "ERROR - " << ex.what() << endl;
         return 1;
     }
-    auto const randomized = is_arg_specified(args, "-r", "--randomized");
-    auto const use_emojis = is_arg_specified(args, "-e", "--emojis");
-    auto capture_output = is_arg_specified(args, "-c", "--capture");
+
+    if (deps.is_arg_specified_fn(args, 'h', "help")) {
+        deps.usage_fn(args[0], out_strm);
+        return 0;
+    }
+    auto write_colorized = !deps.is_arg_specified_fn(args, 0, "no-color");
+    auto const use_emojis = deps.is_arg_specified_fn(args, 'e', "emojis");
+    if (deps.is_arg_specified_fn(args, 'l', "list")) {
+        for (auto i = 1u; i < args.size(); ++i) {
+            err_strm << "WARNING: ignoring argument(s) '" << args[i] << "'\n";
+        }
+        deps.list_tests_fn(tests, out_strm, write_colorized, use_emojis);
+        return 0;
+    }
+
+    auto const write_json = deps.is_arg_specified_fn(args, 'j', "json");
+    auto const force_use_default_reporter = deps.is_arg_specified_fn(args, 't', "text");
+    if (force_use_default_reporter && write_json) {
+        err_strm << "ERROR: cannot specify both the default and json output.\n" ;
+        return 1;
+    }
+    auto const randomized = deps.is_arg_specified_fn(args, 'r', "randomized");
+    auto capture_output = deps.is_arg_specified_fn(args, 'c', "capture");
 
     auto write_junit = false;
-    basic_string<Ch> junit_test_report_name;
+    string_type junit_test_report_name;
     {
-        auto res = get_arg_value(args, "", "--junit");
+        auto res = deps.get_arg_value_fn(args, 0, "junit");
         auto const was_found = res.first;
         if (was_found) {
             if (force_use_default_reporter) {
-                TUXX_ERROR_OSTRM << "ERROR: cannot specify both the default and junit output.\n" ;
+                err_strm << "ERROR: cannot specify both the default and junit output.\n";
                 return 1;
             }
             if (write_json) {
-                TUXX_ERROR_OSTRM << "ERROR: cannot specify both json and junit output.\n";
+                err_strm << "ERROR: cannot specify both json and junit output.\n";
                 return 1;
             }
             write_junit = true;
@@ -2290,38 +2668,38 @@ int main(
         }
     }
 
-    Ch opt_delim{};
+    char_type opt_delim{};
     {
-        auto const res = get_arg_value(args, "-d", "--delim");
+        auto const res = deps.get_arg_value_fn(args, 'd', "delim");
         auto const was_found = res.first;
         if (was_found) {
             if (force_use_default_reporter) {
-                TUXX_ERROR_OSTRM
+                err_strm
                     << "ERROR: cannot specify both the default and delimited output.\n" ;
                 return 1;
             }
             if (write_json) {
-                TUXX_ERROR_OSTRM << "ERROR: cannot specify both json and delimited output.\n";
-                usage(args[0], TUXX_REPORT_OSTRM);
+                err_strm << "ERROR: cannot specify both json and delimited output.\n";
+                deps.usage_fn(args[0], out_strm);
                 return 1;
             }
             if (write_junit) {
-                TUXX_ERROR_OSTRM << "ERROR: cannot specify both junit and delimited output.\n";
-                usage(args[0], TUXX_REPORT_OSTRM);
+                err_strm << "ERROR: cannot specify both junit and delimited output.\n";
+                deps.usage_fn(args[0], out_strm);
                 return 1;
             }
             if (res.second.empty()) {
-                TUXX_ERROR_OSTRM
+                err_strm
                     << "ERROR: delimiter character must be specified with -d|--delim.\n";
-                usage(args[0], TUXX_REPORT_OSTRM);
+                deps.usage_fn(args[0], out_strm);
                 return 1;
             }
             opt_delim = parse_delim(res.second);
             if (!opt_delim) {
-                TUXX_ERROR_OSTRM
+                err_strm
                     << "ERROR: -d|--delim delimiter is invalid - must be a single character or '\t'"
                     << endl;
-                usage(args[0], TUXX_REPORT_OSTRM);
+                deps.usage_fn(args[0], out_strm);
                 return 1;
             }
         }
@@ -2329,68 +2707,65 @@ int main(
 
     size_t concurrency{1};
     {
-        auto const res = get_arg_value(args, "-p", "--parallel");
+        auto const res = deps.get_arg_value_fn(args, 'p', "parallel");
         auto const was_found = res.first;
         if (was_found) {
             if (!res.second.empty()) {
-                basic_istringstream<Ch> iss(res.second);
+                basic_istringstream<char_type> iss(res.second);
                 if (!(iss >> concurrency)) {
-                    TUXX_ERROR_OSTRM
+                    err_strm
                         << "ERROR: a numeric value must be provided for -p|--parallel" << endl;
-                    usage(args[0], TUXX_REPORT_OSTRM);
+                    deps.usage_fn(args[0], out_strm);
                     return 1;
                 }
             } else {
-                concurrency = thread::hardware_concurrency();
+                concurrency = deps.get_hardware_concurrency_fn();
             }
         }
     }
 
-    basic_string<Ch> opt_name_matches;
+    string_type opt_name_matches;
     {
-        auto res = get_arg_value(args, "-m", "--match");
+        auto res = deps.get_arg_value_fn(args, 'm', "match");
         auto const was_found = res.first;
         opt_name_matches = move(res.second);
         if (was_found) {
             if (opt_name_matches.empty()) {
-                TUXX_ERROR_OSTRM << "ERROR: value required for '-m|--match' argument" << endl;
-                usage(args[0], TUXX_REPORT_OSTRM);
+                err_strm << "ERROR: value required for '-m|--match' argument" << endl;
+                deps.usage_fn(args[0], out_strm);
                 return 1;
             }
         }
     }
 
-    basic_string<Ch> opt_num_matches;
+    string_type opt_num_matches;
     {
-        auto res = get_arg_value(args, "-n", "--number");
+        auto res = deps.get_arg_value_fn(args, 'n', "number");
         auto const was_found = res.first;
         opt_num_matches = move(res.second);
         if (was_found) {
             if (opt_num_matches.empty()) {
-                TUXX_ERROR_OSTRM << "ERROR: value required for '-n|--number' argument" << endl;
-                usage(args[0], TUXX_REPORT_OSTRM);
+                err_strm << "ERROR: value required for '-n|--number' argument" << endl;
+                deps.usage_fn(args[0], out_strm);
                 return 1;
             }
         }
     }
 
     if (args.size() > 1) {
+        auto const prog_name = args[0];
         args.erase(args.begin());
         for (auto const& arg : args) {
-            TUXX_ERROR_OSTRM << "ERROR: unrecognized argument: '" << arg.c_str() << "'" << endl;
+            err_strm << "ERROR: unrecognized argument: '" << arg.c_str() << "'" << endl;
         }
-        usage(args[0], TUXX_REPORT_OSTRM);
+        deps.usage_fn(prog_name, out_strm);
         return 1;
     }
 
-#if defined(TUXX_IS_UNIX)
-    if (!isatty(1)) {
+    if (!deps.isatty_fn(STDOUT_FILENO)) {
+        // Avoid control characters if redirecting output...
         write_colorized = false;
     }
-#else
-    // Need to implement colorized output for this platform.
-    write_colorized = false;    
-#endif
 
     function<bool(test_case_instance const&)> filter;
 
@@ -2431,12 +2806,15 @@ int main(
 
     // Use a temporary output stream if capturing stdout and stderr from code
     // under test.
-    basic_ostringstream<char_type> rpt_os;
+    ostringstream_type rpt_os;
 
+#if defined(TUXX_DEFINE_CUSTOM_REPORTER)
     // Test_args needs to be declared here to keep it alive for at least as
     // long as the reporter.
     test_case_reporter_args test_args;
+#endif
     unique_ptr<test_case_reporter> reporter;
+    auto p_reporter = deps.p_reporter;
 
     if (!p_reporter) {
         if (write_json) {
@@ -2447,16 +2825,17 @@ int main(
             reporter.reset(
                 new test_case_reporter_junit(
                     rpt_os,
-                    detail::to_char_type(args[0]),
+                    args[0],
                     tests.size(),
-                    detail::to_char_type(junit_test_report_name)
+                    junit_test_report_name
                 )
             );
         } else if (opt_delim) {
             capture_output = true;  // Force to true
             reporter.reset(new test_case_reporter_delim{rpt_os, static_cast<char_type>(opt_delim)});
         } else {
-            auto& ostrm = (capture_output ? rpt_os : TUXX_REPORT_OSTRM);
+            auto& ostrm = (capture_output ? rpt_os : out_strm);
+#if defined(TUXX_DEFINE_CUSTOM_REPORTER)
             if (!force_use_default_reporter) {
                 test_args.p_report_ostream = &ostrm;
                 test_args.p_test_cases = tests.data();
@@ -2465,8 +2844,9 @@ int main(
                 test_args.use_emojis = use_emojis;
                 test_args.concurrency = concurrency;
                 test_args.capture_output = capture_output;
-                reporter.reset(TUXX_USER_TEST_CASE_REPORTER_INIT(test_args));
+                reporter.reset(::tuxx_make_custom_reporter(test_args));
             }
+#endif
             if (!reporter) {
                 reporter.reset(
                     new test_case_reporter_plain_text{
@@ -2479,94 +2859,68 @@ int main(
                 );
             }
         }
+        p_reporter = reporter.get();
     }
-
-    p_reporter = reporter.get();
 
     int ret{};
     if (capture_output) {
-        // Setup stdout/stderr redirection for capture...
-        auto redirect_thread_fn = [](
-            ostringstream& oss,
-            int rfd
-        ) {
-            char buf[1000];
-            for (;;) {
-                auto n_read = tuxx_os_read(rfd, buf, sizeof(buf));
-                if (n_read <= 0) {
-                    return;
-                }
-                oss.write(buf, n_read);
+        auto const res = deps.with_redirection_fn(
+            [&tests, &deps, concurrency, randomized, p_reporter] {
+                return deps.run_test_cases_fn(tests, *p_reporter, concurrency, randomized);
             }
-        };
-
-        file_desc saved_stdout;
-        file_desc tmp_stdout_r;
-        redirect_output(STDOUT_FILENO, saved_stdout, tmp_stdout_r);
-
-        ostringstream stdout_oss;
-        thread stdout_thr{
-            [&stdout_oss, redirect_thread_fn, &tmp_stdout_r]() {
-                redirect_thread_fn(stdout_oss, tmp_stdout_r.fd);
-            }
-        };
-
-        file_desc saved_stderr;
-        file_desc tmp_stderr_r;
-        redirect_output(STDERR_FILENO, saved_stderr, tmp_stderr_r);
-
-        ostringstream stderr_oss;
-        thread stderr_thr{
-            [&stderr_oss, redirect_thread_fn, &tmp_stderr_r]() {
-                redirect_thread_fn(stderr_oss, tmp_stderr_r.fd);
-            }
-        };
-
-        ret = run_test_cases(move(tests), *p_reporter, concurrency, randomized);
-
-        // If we fail to restore stdout/stderr here, there's not really much
-        // that can be done to inform the user other than returning an error.
-        restore_output(STDOUT_FILENO, saved_stdout);
-        stdout_thr.join();
-
-        restore_output(STDERR_FILENO, saved_stderr);
-        stderr_thr.join();
-
-        reporter->finish(
-            detail::to_char_type(stdout_oss.str()),
-            detail::to_char_type(stderr_oss.str())
         );
 
-        TUXX_REPORT_OSTRM << rpt_os.str() << "'" << flush;
+        reporter->finish(res.stdout, res.stderr);
+
+        out_strm << rpt_os.str() << "'" << flush;
     } else {
-        ret = run_test_cases(move(tests), *p_reporter, concurrency, randomized);
+        ret = deps.run_test_cases_fn(tests, *p_reporter, concurrency, randomized);
         reporter->finish(string_type{}, string_type{});
     }
+
     return ret;
 }
 
-template <typename Ch>
 int wrap_main(
-    std::vector<std::basic_string<Ch>>& args,
-    std::vector<test_case_instance>&& tests
+    std::vector<string_type>& args,
+    std::vector<test_case_instance>& tests,
+    report_ostream_type& out_strm = TUXX_REPORT_OSTRM,
+    report_ostream_type& err_strm = TUXX_ERROR_OSTRM,
+    std::function<
+        int(
+            std::vector<string_type>&,
+            std::vector<test_case_instance>,
+            report_ostream_type&,
+            report_ostream_type&
+        )
+    > main_fn = nullptr
 ) {
+    if (!main_fn) {
+        main_fn = [](
+            std::vector<string_type>& args,
+            std::vector<test_case_instance> tests,
+            report_ostream_type& out_strm,
+            report_ostream_type& err_strm
+        ) {
+            return main(args, tests, out_strm, err_strm);
+        };
+    }
     try {
-        return main(args, std::move(tests));
+        return main_fn(args, tests, out_strm, err_strm);
     } catch (std::exception const& ex) {
-        TUXX_ERROR_OSTRM << "ERROR - unhandled exception: " << ex.what();
+        err_strm << "ERROR - unhandled exception: " << ex.what() << std::endl;
     } catch (...) {
-        TUXX_ERROR_OSTRM << "ERROR - unknown exception";
+        err_strm << "ERROR - unknown exception" << std::endl;
     }
     return 1;
 }
 
-template <typename Ch>
 int do_char_main(
     int argc,
-    Ch* argv[]
+    char_type* argv[]
 ) {
-    std::vector<std::basic_string<Ch>> args(argv, argv + argc);
-    return wrap_main(args, std::move(detail::tests__()));
+    std::vector<string_type> args(argv, argv + argc);
+    return wrap_main(args, detail::tests__());
 }
 
 }
@@ -2596,10 +2950,7 @@ int do_char_main(
                         sizeof(progName) / sizeof(progName[0])
                     );
                     args.insert(args.begin(), progName);
-                    return ::nyej::tuxx::wrap_main(
-                        args,
-                        std::move(::nyej::tuxx::detail::tests__())
-                    );
+                    return ::nyej::tuxx::wrap_main(args, ::nyej::tuxx::detail::tests__());
                 }
                 #define TUXX_MAIN_IS_DEFINED
             #elif defined(TUXX_IS_WINDOWS_UNICODE)

@@ -9,9 +9,11 @@ A simple, modern, extensible single-header C++ unit testing library.
     - [Basics](#basics)
       - [Including the Library](#including-the-library)
       - [Defining Test Cases](#defining-test-cases)
+        - [Example "Args" Test Cases](#example-args-test-cases)
       - [Assertions](#assertions)
   - [Output and User-Defined Types](#output-and-user-defined-types)
   - [Command Line Options](#command-line-options)
+    - [Combining Short-Form Options](#combining-short-form-options)
   - [Test Case Macros](#test-case-macros)
   - [List of Assertions](#list-of-assertions)
   - [Building the Unit Test Executable](#building-the-unit-test-executable)
@@ -99,7 +101,7 @@ test_case(another_test_case_name) {
 ```
 Assuming everything builds and passes, running the resulting executable will produce the following output with the default reporter and emojis enabled (using the default emojis):
 
-![Basic-Output](./img/basic-output.png)
+![Basic-Output](img/basic-output.png)
 
 Notice the cyan number in square brackets to the left of the listed test cases.
 This is the test case's id/number and is used to help focus on certain tests while in development.
@@ -108,6 +110,36 @@ Test case ranges for the `-n|--number` option are also supported by using the `-
 
 Tests can also be selected by using a case-insensitive test case name prefix with the `-m|--match` argument as in: `-mTestGroup1,TestGroup7` or `--match TestGroup1,TestGroup7`.
 Keep in mind there is no significance in the names here - they are simply prefixes of the available test cases.
+
+##### Example "Args" Test Cases
+
+```C++
+test_case(some_test_case_name) {
+    // Arrange
+    // Act
+    // Assert
+}
+
+test_case(another_test_case_name) {
+    // Arrange
+    // Act
+    // Assert
+}
+
+// Generates a test case per argument provided
+test_case_args(another_test_case_with_args, int, 1, 2, 3) {
+    // Arrange
+    // Act
+    // Assert
+}
+```
+
+The output of the above with the default reporter will be:
+
+![Output-With-Args](img/output-with-args.png)
+
+Note how each argument passed to `test_case_args` generates a separate test case that has its own ID.
+These can be selected individually by running the exectuable with the `-n|--number` command line option.
 
 #### Assertions
 
@@ -163,6 +195,11 @@ The following command line options are supported by the resulting test executabl
 
 >NOTE: test case ids/numbers will change as test cases are added or removed.
 They are not permanent ids; they are intended to help provide a quick turnaround time when fixing failing test cases or otherwise isolating them.
+
+### Combining Short-Form Options
+
+Short form arguments except `m`, `n`, `d`, and `p` (if a value is provided) can be combined.
+For example, `-epr` would enable emojis, run test cases in parallel and random shuffle the them.
 
 ## Test Case Macros
 
@@ -542,38 +579,20 @@ Following are an examples of how to override the reporter.
 ... include headers for code under test ...
 
 //------------------------------------------------------------------------------
-// 1. Forward-declare a couple of tuxx types...
-namespace nyej {
-namespace tuxx {
-
-struct test_case_reporter;
-struct test_case_reporter_args;
-
-}
-}
-
-//------------------------------------------------------------------------------
-// 2. Forward-declare your reporter's factory function. (Do not 'use' the tuxx namespaces yet)
-static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
-    nyej::tuxx::test_case_reporter_args const&
-);
-
-//------------------------------------------------------------------------------
-// 3. #define TUXX_USER_TEST_CASE_REPORTER_INIT to call your factory function
-#define TUXX_USER_TEST_CASE_REPORTER_INIT(args) make_my_test_case_reporter(args)
-
-//------------------------------------------------------------------------------
-// 4. This must be done with a defined main()...
+// 1. #define TUXX_DEFINE_CUSTOM_REPORTER in the same source file we #define TUXX_DEFINE_TEST_MAIN
+#define TUXX_DEFINE_CUSTOM_REPORTER
 #define TUXX_DEFINE_TEST_MAIN
 
 //------------------------------------------------------------------------------
-// 5. #include tuxx
+// 2. #include tuxx
 #include <tuxx.hpp>
+
+using namespace nyej::tuxx;
 
 ... can also put test_cases here or later ...
 
 //------------------------------------------------------------------------------
-// 6. Define your test case reporter (or #include it here).
+// 3. Define your test case reporter (or #include it here).
 namespace {
 
 struct my_test_case_reporter : nyej::tuxx::test_case_reporter {
@@ -583,10 +602,9 @@ struct my_test_case_reporter : nyej::tuxx::test_case_reporter {
 }
 
 //------------------------------------------------------------------------------
-// 7. Define your reporter's factory function
-static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
-    nyej::tuxx::test_case_reporter_args const& args
-) {
+// 4. Implement tuxx_make_custom_reporter (it must have this signature). This can be in its own
+//    source file.
+test_case_reporter* tuxx_make_custom_reporter(test_case_reporter_args const& args) {
     // NOTE: args will remain in scope for the lifetime of the created test reporter.
     return new my_test_case_reporter{
         /* Pass along the fields from args that make sense for your reporter */
@@ -596,75 +614,40 @@ static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
 
 #### Creating a custom Reporter without Derivation
 
+This is the same process as defining a class derived from `test_case_reporter` except that step
+3 above is omitted and `make_tuxx_custom_reporter` should be implemented as:
+
 `my-test-main.cpp`:
 ```C++
 
-... include headers for code under test ...
+... same as above example except step 3 is omitted ...
+
+using namespace nyej::tuxx;
 
 //------------------------------------------------------------------------------
-// 1. Forward-declare a couple of tuxx types...
-namespace nyej {
-namespace tuxx {
-
-struct test_case_reporter;
-struct test_case_reporter_args;
-
-}
-}
-
-//------------------------------------------------------------------------------
-// 2. Forward-declare your reporter's factory function.
-static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
-    nyej::tuxx::test_case_reporter_args const&
-);
-
-//------------------------------------------------------------------------------
-// 3. #define TUXX_USER_TEST_CASE_REPORTER_INIT for your factory function
-#define TUXX_USER_TEST_CASE_REPORTER_INIT(args) make_my_test_case_reporter(args)
-
-//------------------------------------------------------------------------------
-// 4. This must be done with a defined main()...
-#define TUXX_DEFINE_TEST_MAIN
-
-//------------------------------------------------------------------------------
-// 5. #include tuxx
-#include <tuxx.hpp>
-
-... can also put test_cases here or later ...
-
-//------------------------------------------------------------------------------
-// 6. Define your reporter's factory function
-static nyej::tuxx::test_case_reporter* make_my_test_case_reporter(
-    nyej::tuxx::test_case_reporter_args const& args
-) {
+// Implement tuxx_make_custom_reporter (it must have this signature). This can be in its own
+// source file.
+test_case_reporter* tuxx_make_custom_reporter(test_case_reporter_args const& args) {
     // NOTE: args will remain in scope for the lifetime of the created test reporter.
 
-    // nyej::tuxx::test_case_reporter_fns is defined to allow you to avoid
-    // having to create a new derived class. The lambdas provided here need
-    // to match the order and signatures of the corresponding functions in
-    // the nyej::tuxx::test_case_reporter interface. If empty or null
-    // functions are provided, the library will simply skip these functions.
-    return new nyej::tuxx::test_case_reporter_fns(
-        // Pass lambdas here (only pass/fail are used in this example)
-        nullptr,
-        nullptr,
-        nullptr,
-        [...state you want captured...](
-            test_case_instance const& tc,
-            std::chrono::steady_clock::duration const& elapsed
-        ) {
-            ... your logic here
-        },
-        [...state you want captured...](
-            test_case_instance const& tc,
-            test_case_failure_error const& err,
-            std::chrono::steady_clock::duration const& elapsed
-        ) {
-            ... your logic here
-        },
-        nullptr,
-        nullptr
-    );
+    // Only handling test case pass/fail here.
+    return test_case_reporter_fns_builder()
+        .handle_test_case_passed(
+            [&args](
+                test_case_instance const& tc,
+                chrono::steady_clock::duration const& elapsed
+            ) {
+                *args.p_report_ostream << tc.name << " P\n";
+            }
+        ).handle_test_case_failed(
+            [&args](
+                test_case_instance const& tc,
+                test_case_failure_error const& err,
+                chrono::steady_clock::duration const& elapsed
+            ) {
+                *args.p_report_ostream << tc.name << " F\n";
+            }
+        ).build();
 }
 ```
 
