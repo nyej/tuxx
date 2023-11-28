@@ -2007,7 +2007,7 @@ std::pair<std::size_t, std::size_t> read_number_range(string_type const& num_pai
     }
 
     ch = iss.peek();
-    if (ch == istringstream::traits_type::eof()) {
+    if (ch == basic_istringstream<char_type>::traits_type::eof()) {
         // Only have a single number at this point.
         return make_pair(idx_low, idx_low + 1);
     }
