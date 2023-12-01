@@ -38,6 +38,7 @@ A simple, modern, extensible single-header C++ unit testing library.
   - [Emojis](#emojis)
   - [TUXX Library Tests and Examples](#tuxx-library-tests-and-examples)
   - [Testes Platforms/Compilers](#testes-platformscompilers)
+  - [Windows and WinMain](#windows-and-winmain)
   - [Future Improvements](#future-improvements)
 
 A small but powerful and very flexible unit testing library for C++.
@@ -99,7 +100,7 @@ test_case(another_test_case_name) {
     // Assert
 }
 ```
-Assuming everything builds and passes, running the resulting executable will produce the following output with the default reporter and emojis enabled (using the default emojis):
+Assuming everything builds and passes, running the resulting executable will produce output similar to the following using default reporter and emojis enabled (using the default emojis and depending on the number of actual asserts):
 
 ![Basic-Output](img/basic-output.png)
 
@@ -134,7 +135,7 @@ test_case_args(another_test_case_with_args, int, 1, 2, 3) {
 }
 ```
 
-The output of the above with the default reporter will be:
+The output of the above with the default reporter might look something like the following (depending on the number of actual asserts):
 
 ![Output-With-Args](img/output-with-args.png)
 
@@ -153,7 +154,7 @@ Assertions are of the form:
 assert_[op](...args...);
 ```
 
-There is a corresponding `assert_[op]_msg` macro for every plain `assert_[op]` macro which accepts one additional argument which is used to provide extra information on assertion failures.
+There is a corresponding `assert_[op]_msg` macro for every plain `assert_[op]` macro that accepts one additional argument which is used to provide extra information on assertion failures.
 It can be a simple value or a `std::basic_ostream<char_type>` streaming style expression:
 
 An example of using a `_msg` assert:
@@ -418,6 +419,8 @@ The `#define`s do not need an actual value.
 |-|-|
 |`TUXX_CHAR_TYPE_IS_CHAR`|The library will set its `char_type` alias to `char`. This is the default for all platforms unless the plaform is Windows and `UNICODE` is `#defined`.|
 |`TUXX_CHAR_TYPE_IS_WCHAR_T`|The library will set its `char_type` to `wchar_t`. This is the default on Windows when `UNICODE` is defined.|
+|`TUXX_REPORT_OSTRM`|The output stream to use for test reports. Defaults to `std::cout` or `std::wcout` based on the character type|
+|`TUXX_ERROR_OSTRM`|The output stream to use for error output. Defaults to `std::cerr` or `std::wcerr` based on the character type|
 
 >NOTE: I attempted to provide seamless support for `char*_t` but it seems no standard library
 implementations have full support for these character types.
@@ -514,10 +517,10 @@ namespace nyej {
 namespace tuxx {
 
 struct test_case_instance {
-    char const* file{};             // File in which test case is defined
-    int line{};                     // Line in the file on which test is defined
+    char const* file;               // File in which test case is defined
+    int line;                       // Line in the file on which test is defined
     string_type name;               // The textual name of the test case
-    std::size_t idx{};              // The id/number of the test case
+    std::size_t idx;                // The id/number of the test case
     string_type arg;                // The textual representation of the argument or empty if none
 };
 
@@ -556,7 +559,7 @@ namespace nyej {
 namespace tuxx {
 
 struct test_case_reporter_args {
-    report_ostream_type* p_report_ostream{};
+    report_ostream_type* p_report_ostream;
     test_case_instance const* p_test_cases; // Array of test cases.
     std::size_t n_tests;
     std::size_t concurrency;
@@ -748,6 +751,14 @@ If you run into any issues with building or running the tests or examples, pleas
 |-|-|
 |Ubuntu/Linux|G++ 11.4|
 |Mac|Clang 11|
+
+## Windows and WinMain
+
+If you are using Windows and your test program needs to use a `WinMain[A|W]`, you can `#define TUXXX_USE_WINMAIN` where you `#define TUXX_DEFINE_TEST_MAIN` before `#include`ing `tuxx.hpp`, which will cause tuxx to use the appropriate `WinMain` as its entry point.
+Notes:
+- You will need to `#include <Windows.h>` in the appropriate way before `#include`ing `tuxx.hpp`.
+  This is not done automatically because Windows is often sensitive to `#include` order.
+- Since you are using WinMain, you are most likely using some sort of user interface, so you will most likely need to use a custom reporter that can post to the message queue of the UI to display the results.
 
 ## Future Improvements
 

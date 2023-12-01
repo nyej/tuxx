@@ -22,8 +22,10 @@ SOFTWARE.
 
  */
 
-#if !defined(NYEJ_TUXX_HPP)
-#define NYEJ_TUXX_HPP
+// NOTE: #define's ending in '__' are considered to be for internal use only.
+
+#if !defined(NYEJ_TUXX_HPP__)
+#define NYEJ_TUXX_HPP__
 
 /*
 
@@ -51,15 +53,15 @@ SOFTWARE.
 #include <utility>
 #include <vector>
 
-#if (!defined(TUXX_IS_WINDOWS) && !defined(TUXX_IS_UNIX))
+#if (!defined(TUXX_IS_WINDOWS__) && !defined(TUXX_IS_UNIX__))
     // Auto-detect the operating system
     #if defined(_WIN32)
-        #define TUXX_IS_WINDOWS
+        #define TUXX_IS_WINDOWS__
         #if defined(UNICODE)
             #define TUXX_IS_WINDOWS_UNICODE
         #endif
     #elif defined(__unix__) || defined(__APPLE__)
-        #define TUXX_IS_UNIX
+        #define TUXX_IS_UNIX__
     #else
         #error unsupported operating system
     #endif
@@ -68,13 +70,13 @@ SOFTWARE.
 #if defined(_WIN32)
     #include <io.h>
 
-    #define tuxx_os_dup ::_dup
-    #define tuxx_os_dup2 ::_dup2
-    #define tuxx_os_pipe(pipe_fds) ::_pipe(pipe_fds, 4096, O_BINARY)
-    #define tuxx_os_read ::_read
-    #define tuxx_os_close ::_close
+    #define tuxx_os_dup__ ::_dup
+    #define tuxx_os_dup2__ ::_dup2
+    #define tuxx_os_pipe__(pipe_fds) ::_pipe(pipe_fds, 4096, O_BINARY)
+    #define tuxx_os_read__ ::_read
+    #define tuxx_os_close__ ::_close
 
-    inline int tuxx_os_isatty(int) {
+    inline int tuxx_os_isatty__(int) {
         return false;
     }
 
@@ -90,19 +92,19 @@ SOFTWARE.
 #else
     #include <unistd.h>
 
-    #define tuxx_os_dup ::dup
-    #define tuxx_os_dup2 ::dup2
-    #define tuxx_os_pipe ::pipe
-    #define tuxx_os_read ::read
-    #define tuxx_os_close ::close
-    #define tuxx_os_isatty ::isatty
+    #define tuxx_os_dup__ ::dup
+    #define tuxx_os_dup2__ ::dup2
+    #define tuxx_os_pipe__ ::pipe
+    #define tuxx_os_read__ ::read
+    #define tuxx_os_close__ ::close
+    #define tuxx_os_isatty__ ::isatty
 #endif
 
 #if ( \
     !defined(TUXX_CHAR_TYPE_IS_CHAR) && \
     !defined(TUXX_CHAR_TYPE_IS_WCHAR_T) \
 )
-    #if defined(TUXX_IS_WINDOWS) && defined(TUXX_IS_WINDOWS_UNICODE)
+    #if defined(TUXX_IS_WINDOWS__) && defined(TUXX_IS_WINDOWS_UNICODE)
         #define TUXX_CHAR_TYPE_IS_WCHAR_T
     #else
         #define TUXX_CHAR_TYPE_IS_CHAR
@@ -117,7 +119,7 @@ SOFTWARE.
     #if !defined(TUXX_ERROR_OSTRM)
         #define TUXX_ERROR_OSTRM std::cerr
     #endif
-    #define TUXX_STR_LIT(x) x
+    #define TUXX_STR_LIT__(x) x
 #elif defined(TUXX_CHAR_TYPE_IS_WCHAR_T)
     namespace nyej { namespace tuxx { using char_type = wchar_t; } }
     #if !defined(TUXX_REPORT_OSTRM)
@@ -126,25 +128,25 @@ SOFTWARE.
     #if !defined(TUXX_ERROR_OSTRM)
         #define TUXX_ERROR_OSTRM std::wcerr
     #endif
-    #define TUXX_STR_LIT(x) L ## x
+    #define TUXX_STR_LIT__(x) L ## x
 #else
     #error One of TUXX_CHAR_TYPE_IS_CHAR or TUXX_CHAR_TYPE_IS_WCHAR_T must be defined.
 #endif
 
 #if !defined(TUXX_EMOJI_PREFIX)
-    #define TUXX_EMOJI_PREFIX TUXX_STR_LIT("\U0001f9ea")
+    #define TUXX_EMOJI_PREFIX TUXX_STR_LIT__("\U0001f9ea")
 #endif
 #if !defined(TUXX_EMOJI_PASSED)
-    #define TUXX_EMOJI_PASSED TUXX_STR_LIT("\u2705")
+    #define TUXX_EMOJI_PASSED TUXX_STR_LIT__("\u2705")
 #endif
 #if !defined(TUXX_EMOJI_FAILED)
-    #define TUXX_EMOJI_FAILED TUXX_STR_LIT("\u274c")
+    #define TUXX_EMOJI_FAILED TUXX_STR_LIT__("\u274c")
 #endif
 #if !defined(TUXX_EMOJI_SUCCESS)
-    #define TUXX_EMOJI_SUCCESS TUXX_STR_LIT("\U0001f60e")
+    #define TUXX_EMOJI_SUCCESS TUXX_STR_LIT__("\U0001f60e")
 #endif
 #if !defined(TUXX_EMOJI_FAILURE)
-    #define TUXX_EMOJI_FAILURE TUXX_STR_LIT("\U0001f912")
+    #define TUXX_EMOJI_FAILURE TUXX_STR_LIT__("\U0001f912")
 #endif
 
 namespace nyej {
@@ -1001,7 +1003,7 @@ struct test_case_reporter_fns_builder {
 #define test_fail(msg) \
     TUXX_CHECK_RESULT__("test_fail", false, "fail", "test forcibly failed", msg)
 
-#if defined(TUXX_DEFINE_TEST_MAIN) || defined(TUXX_UNDER_TEST)
+#if defined(TUXX_DEFINE_TEST_MAIN) || defined(TUXX_UNDER_TEST__)
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
@@ -1011,48 +1013,48 @@ struct test_case_reporter_fns_builder {
 #include <random>
 #include <thread>
 
-#if defined(TUXX_IS_UNIX)
+#if defined(TUXX_IS_UNIX__)
 #include <unistd.h>
 #endif
 
-#if defined(TUXX_UNDER_TEST)
+#if defined(TUXX_UNDER_TEST__)
     // Give the normally-anonymous namespace an actual name when unit testing tuxx.
-    #define TUXX_TST_NS tst
-    #define TUXX_TST_NS_PREFIX TUXX_TST_NS::
+    #define TUXX_TEST_NS__ tst
+    #define TUXX_TEST_NS_PREFIX__ TUXX_TEST_NS__::
 #else
-    #define TUXX_TST_NS
-    #define TUXX_TST_NS_PREFIX
+    #define TUXX_TEST_NS__
+    #define TUXX_TEST_NS_PREFIX__
 #endif
 
 #if !defined(TUXX_COLOR_SQ_BR)
-    #define TUXX_COLOR_SQ_BR TUXX_TST_NS_PREFIX color::fg_gray
+    #define TUXX_COLOR_SQ_BR TUXX_TEST_NS_PREFIX__ color::fg_gray
 #endif
 #if !defined(TUXX_COLOR_TEST_ID)
-    #define TUXX_COLOR_TEST_ID TUXX_TST_NS_PREFIX color::fg_cyan
+    #define TUXX_COLOR_TEST_ID TUXX_TEST_NS_PREFIX__ color::fg_cyan
 #endif
 #if !defined(TUXX_COLOR_TEST_NAME)
-    #define TUXX_COLOR_TEST_NAME TUXX_TST_NS_PREFIX color::fg_yellow
+    #define TUXX_COLOR_TEST_NAME TUXX_TEST_NS_PREFIX__ color::fg_yellow
 #endif
 #if !defined(TUXX_COLOR_PAREN)
-    #define TUXX_COLOR_PAREN TUXX_TST_NS_PREFIX color::fg_blue
+    #define TUXX_COLOR_PAREN TUXX_TEST_NS_PREFIX__ color::fg_blue
 #endif
 #if !defined(TUXX_COLOR_PARAM)
-    #define TUXX_COLOR_PARAM TUXX_TST_NS_PREFIX color::fg_magenta
+    #define TUXX_COLOR_PARAM TUXX_TEST_NS_PREFIX__ color::fg_magenta
 #endif
 #if !defined(TUXX_COLOR_PUNCT)
-    #define TUXX_COLOR_PUNCT TUXX_TST_NS_PREFIX color::fg_blue
+    #define TUXX_COLOR_PUNCT TUXX_TEST_NS_PREFIX__ color::fg_blue
 #endif
 #if !defined(TUXX_COLOR_DURATION)
-    #define TUXX_COLOR_DURATION TUXX_TST_NS_PREFIX color::fg_white
+    #define TUXX_COLOR_DURATION TUXX_TEST_NS_PREFIX__ color::fg_white
 #endif
 #if !defined(TUXX_COLOR_SUCCESS)
-    #define TUXX_COLOR_SUCCESS TUXX_TST_NS_PREFIX color::fg_green
+    #define TUXX_COLOR_SUCCESS TUXX_TEST_NS_PREFIX__ color::fg_green
 #endif
 #if !defined(TUXX_COLOR_FAIL)
-    #define TUXX_COLOR_FAIL TUXX_TST_NS_PREFIX color::fg_red
+    #define TUXX_COLOR_FAIL TUXX_TEST_NS_PREFIX__ color::fg_red
 #endif
 #if !defined(TUXX_COLOR_FILE_REF)
-    #define TUXX_COLOR_FILE_REF TUXX_TST_NS_PREFIX color::fg_gray
+    #define TUXX_COLOR_FILE_REF TUXX_TEST_NS_PREFIX__ color::fg_gray
 #endif
 
 #if defined(TUXX_DEFINE_CUSTOM_REPORTER)
@@ -1063,7 +1065,7 @@ struct test_case_reporter_fns_builder {
 
 namespace nyej {
 namespace tuxx {
-namespace TUXX_TST_NS {
+namespace TUXX_TEST_NS__ {
 
 enum class color : unsigned {
     fg_black = 30,
@@ -1135,7 +1137,7 @@ report_ostream_type& write_test_case_name(
                 - tc.name.length()
                 - (tc.arg.empty() ? 0 : tc.arg.length() + 2);
         }
-        os << setw(width) << setfill(TUXX_STR_LIT(' ')) << left;
+        os << setw(width) << setfill(TUXX_STR_LIT__(' ')) << left;
     }
     return os << str;
 }
@@ -1167,7 +1169,7 @@ report_ostream_type& write_duration(
     if (include_brackets) {
         write_with_color(os, "[", TUXX_COLOR_SQ_BR, color_enabled);
     }
-    static auto constexpr fill_ch = TUXX_STR_LIT('0');
+    static auto constexpr fill_ch = TUXX_STR_LIT__('0');
     static auto constexpr col = ":";
     static size_t const MS_IN_SEC = 1000;
     static size_t const MS_IN_MIN = MS_IN_SEC * 60;
@@ -1183,15 +1185,15 @@ report_ostream_type& write_duration(
     oss << setw(2) << setfill(fill_ch) << h;
     write_with_color(os, oss.str(), TUXX_COLOR_DURATION, color_enabled);
     write_with_color(os, col, TUXX_COLOR_PUNCT, color_enabled);
-    oss.str(TUXX_STR_LIT(""));
+    oss.str(TUXX_STR_LIT__(""));
     oss << setw(2) << setfill(fill_ch) << m;
     write_with_color(os, oss.str(), TUXX_COLOR_DURATION, color_enabled);
     write_with_color(os, col, TUXX_COLOR_PUNCT, color_enabled);
-    oss.str(TUXX_STR_LIT(""));
+    oss.str(TUXX_STR_LIT__(""));
     oss << setw(2) << setfill(fill_ch) << s;
     write_with_color(os, oss.str(), TUXX_COLOR_DURATION, color_enabled);
     write_with_color(os, ".", TUXX_COLOR_PUNCT, color_enabled);
-    oss.str(TUXX_STR_LIT(""));
+    oss.str(TUXX_STR_LIT__(""));
     oss << setw(3) << setfill(fill_ch) << ms;
     write_with_color(os, oss.str(), TUXX_COLOR_DURATION, color_enabled);
     if (include_brackets) {
@@ -1324,23 +1326,23 @@ struct test_case_reporter_plain_text : test_case_reporter {
         using namespace std;
         auto const width = 12u;
         auto const n_passed = n_total_tests - failures.size();
-        os << "\nCONCURRENCY:          " << setw(width) << setfill(TUXX_STR_LIT(' ')) << right
+        os << "\nCONCURRENCY:          " << setw(width) << setfill(TUXX_STR_LIT__(' ')) << right
             << concurrency
-           << "\nTOTAL TEST CASES RUN: " << setw(width) << setfill(TUXX_STR_LIT(' ')) << right
+           << "\nTOTAL TEST CASES RUN: " << setw(width) << setfill(TUXX_STR_LIT__(' ')) << right
             << n_total_tests
-           << "\nTOTAL ASSERTS:        " << setw(width) << setfill(TUXX_STR_LIT(' ')) << right
+           << "\nTOTAL ASSERTS:        " << setw(width) << setfill(TUXX_STR_LIT__(' ')) << right
             << n_total_asserts
            << "\nELAPSED:              ";
         write_duration(os, elapsed, do_write_color, false) << '\n';
         write_with_color(os, "PASSED", TUXX_COLOR_SUCCESS, do_write_color)
-            << ":               " << setw(width) << setfill(TUXX_STR_LIT(' '))
+            << ":               " << setw(width) << setfill(TUXX_STR_LIT__(' '))
             << n_passed << '\n';
         if (failures.empty()) {
             os << '\n';
             write_passed(os, TUXX_EMOJI_SUCCESS, "SUCCESS");
         } else {
             write_with_color(os, "FAILED", TUXX_COLOR_FAIL, do_write_color)
-                << ":               " << setw(width) << setfill(TUXX_STR_LIT(' '))
+                << ":               " << setw(width) << setfill(TUXX_STR_LIT__(' '))
                 << failures.size() << '\n';
             write_with_color(os << '\n', "FAILURES", TUXX_COLOR_FAIL, do_write_color)
                 << ":\n";
@@ -1603,7 +1605,7 @@ private:
                 case '\v': os << "\\v"; break;
                 default: {
                     if (c < 32) {
-                        os << "\\u" << hex << setw(4) << setfill(TUXX_STR_LIT('0'))
+                        os << "\\u" << hex << setw(4) << setfill(TUXX_STR_LIT__('0'))
                         << static_cast<unsigned>(c & 0xff)
                         << dec;
                     } else {
@@ -1817,12 +1819,12 @@ private:
     static string_type get_test_case_name(test_case_instance const& tc) {
         string_type ret{tc.name};
         if (!tc.arg.empty()) {
-            ret += TUXX_STR_LIT('(') + tc.arg + TUXX_STR_LIT(')');
+            ret += TUXX_STR_LIT__('(') + tc.arg + TUXX_STR_LIT__(')');
         }
         return ret;
     }
     static string_type cleanup_name(string_type name) {
-        static char_type const bad_chars[] = TUXX_STR_LIT("./\\- ");
+        static char_type const bad_chars[] = TUXX_STR_LIT__("./\\- ");
         auto const idx_first_good = name.find_first_not_of(bad_chars);
         name.erase(0, idx_first_good);
         auto const idx_last_good = name.find_last_not_of(bad_chars);
@@ -1967,7 +1969,7 @@ char_type parse_delim(string_type const& s) {
     }
     if (s.length() == 2) {
         if ((s[0] == '\\') && (s[1] == 't')) {
-            return TUXX_STR_LIT('\t');
+            return TUXX_STR_LIT__('\t');
         }
     }
     return 0;
@@ -2066,7 +2068,7 @@ void remove_arg(
     for (auto idx = arg.find(id_c, 1); idx != string_type::npos; idx = arg.find(id_c, 1)) {
         arg.erase(idx, 1);
     }
-    if (arg == TUXX_STR_LIT("-")) {
+    if (arg == TUXX_STR_LIT__("-")) {
         args.erase(it);
     }
 }
@@ -2144,7 +2146,7 @@ bool run_test_case(
             test_case_failure_error{
                 tc.file,
                 tc.line,
-                TUXX_STR_LIT("Unhandled std::exception: ")
+                TUXX_STR_LIT__("Unhandled std::exception: ")
                     + detail::to_char_type(ex.what())
             },
             steady_clock::now() - start_time
@@ -2153,7 +2155,7 @@ bool run_test_case(
         unique_lock<mutex> _(m);
         rep.test_case_failed(
             tc,
-            test_case_failure_error{tc.file, tc.line, TUXX_STR_LIT("Unknown exception")},
+            test_case_failure_error{tc.file, tc.line, TUXX_STR_LIT__("Unknown exception")},
             steady_clock::now() - start_time
         );
     }
@@ -2291,7 +2293,7 @@ struct file_desc {
     void release() { fd = -1; }
     void close() {
         if (fd >= 0) {
-            if (tuxx_os_close(fd) < 0) {
+            if (tuxx_os_close__(fd) < 0) {
                 char buf[1000];
                 strerror_r(errno, buf, sizeof(buf));
                 fprintf(stderr, "Descriptor '%s' - error with close: %s", name.c_str(), buf);
@@ -2329,9 +2331,9 @@ struct redirect_output_deps {
             os.flush();
             wos.flush();
         };
-        ret.dup_fn = tuxx_os_dup;
-        ret.dup2_fn = tuxx_os_dup2;
-        ret.pipe_fn = tuxx_os_pipe;
+        ret.dup_fn = tuxx_os_dup__;
+        ret.dup2_fn = tuxx_os_dup2__;
+        ret.pipe_fn = tuxx_os_pipe__;
         return ret;
     }
 };
@@ -2426,7 +2428,7 @@ struct with_redirection_deps {
     std::function<void(ThreadType&)> join_thread_fn;
     static with_redirection_deps make_default() {
         with_redirection_deps ret;
-        ret.read_fn = tuxx_os_read;
+        ret.read_fn = tuxx_os_read__;
         ret.write_fn = [](
             std::ostream& os,
             char const* data,
@@ -2536,7 +2538,7 @@ void check_args(std::vector<string_type> const& args) {
         if (arg[1] == '-') {
             continue;   // Long-form argument
         }
-        auto const idx_ch = arg.find_first_not_of(TUXX_STR_LIT("cehljprt"), 1);
+        auto const idx_ch = arg.find_first_not_of(TUXX_STR_LIT__("cehljprt"), 1);
         if (idx_ch != string_type::npos) {
             throw invalid_argument{
                 string{"unrecognized argument '"} +
@@ -2599,7 +2601,7 @@ struct main_deps {
         ret.list_tests_fn = list_tests;
         ret.is_arg_specified_fn = is_arg_specified;
         ret.get_arg_value_fn = get_arg_value;
-        ret.isatty_fn = tuxx_os_isatty;
+        ret.isatty_fn = tuxx_os_isatty__;
         ret.with_redirection_fn = [](std::function<int()> const& f) {
             return with_redirection(f);
         };
@@ -2915,6 +2917,7 @@ int wrap_main(
     return 1;
 }
 
+inline
 int do_char_main(
     int argc,
     char_type* argv[]
@@ -2928,9 +2931,9 @@ int do_char_main(
 }
 #endif
 
-#if !defined(TUXX_UNDER_TEST)
+#if !defined(TUXX_UNDER_TEST__)
     #if defined(TUXX_DEFINE_TEST_MAIN)
-        #if defined(TUXX_IS_WINDOWS)
+        #if defined(TUXX_IS_WINDOWS__)
             #if defined(TUXX_USE_WINMAIN)
                 int WINAPI WinMain(
                     HINSTANCE,
@@ -2952,7 +2955,7 @@ int do_char_main(
                     args.insert(args.begin(), progName);
                     return ::nyej::tuxx::wrap_main(args, ::nyej::tuxx::detail::tests__());
                 }
-                #define TUXX_MAIN_IS_DEFINED
+                #define TUXX_MAIN_IS_DEFINED__
             #elif defined(TUXX_IS_WINDOWS_UNICODE)
                 int wmain(
                     int argc,
@@ -2960,11 +2963,11 @@ int do_char_main(
                 ) {
                     return ::nyej::tuxx::do_char_main(argc, argv);
                 }
-                #define TUXX_MAIN_IS_DEFINED
+                #define TUXX_MAIN_IS_DEFINED__
             #endif
         #endif
 
-        #if !defined(TUXX_MAIN_IS_DEFINED)
+        #if !defined(TUXX_MAIN_IS_DEFINED__)
             int main(
                 int argc,
                 char* argv[]

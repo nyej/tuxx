@@ -22,6 +22,9 @@ SOFTWARE.
 
  */
 
+// WARNING: this is a test driver for tuxx itself. It is NOT an example of
+//          how to use tuxx.
+
 #include "testing.hpp"
 
 #include <vector>
@@ -29,13 +32,6 @@ SOFTWARE.
 
 using namespace std;
 using namespace nyej::tuxx;
-
-// We're not #define'ing TUXX_DEFINE_TEST_MAIN here so we need to add an
-// implementation for this
-std::vector<test_case_instance>& nyej::tuxx::detail::tests__() {
-    static std::vector<test_case_instance> tests;
-    return tests;
-}
 
 struct testing_assert_info {
     test_case_instance tc;
@@ -108,7 +104,7 @@ struct testing_reporter : test_case_reporter {
     } while (false)
 
 template <typename Ch>
-int testing_main(
+void testing_main(
     int argc,
     Ch* argv[]
 ) {
@@ -390,6 +386,4 @@ int testing_main(
 
         CHECK_ASSERT_RESULTS(0, "fail", TESTING_MSG_TXT);
     }
-
-    return 0;
 }

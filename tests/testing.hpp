@@ -26,6 +26,8 @@
 #include <iostream>
 #include <string>
 
+#define TUXX_UNDER_TEST__
+
 struct testing_error {
     char const* file{};
     int line{};
@@ -73,7 +75,7 @@ std::string simple_narrow(std::wstring const& s) {
 
 // Forward-declared entry point
 template <typename Ch> inline
-int testing_main(
+void testing_main(
     int argc,
     Ch* argv[]
 );
@@ -85,7 +87,8 @@ int testing_main_wrapper(
 ) {
     using namespace std;
     try {
-        return testing_main(argc, argv);
+        testing_main(argc, argv);
+        return 0;
     } catch (testing_error const& ex) {
         cerr << "TEST FAILED - " << ex.file << ':' << ex.line << ": " << ex.detail << endl;
     } catch (exception const& ex) {

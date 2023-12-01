@@ -20,7 +20,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-*/
+ */
+
+// WARNING: this is a test driver for tuxx itself. It is NOT an example of
+//          how to use tuxx.
 
 #include "testing.hpp"
 
@@ -29,19 +32,17 @@ SOFTWARE.
 using namespace std;
 using namespace nyej::tuxx;
 
-// We're not #define'ing TUXX_DEFINE_TEST_MAIN here so we need to add an
-// implementation for this
-std::vector<test_case_instance>& nyej::tuxx::detail::tests__() {
-    static std::vector<test_case_instance> tests;
-    return tests;
-}
-
+int const first_test_case_line = __LINE__;
 test_case(first_test_case) {}
+int const second_test_case_line = __LINE__;
 test_case(second_test_case) {}
 
 struct my_fixture {};
 
+int const third_test_case_line = __LINE__;
 test_case_f(my_fixture, third_test_case_f) {}
+
+int const fourth_test_case_line = __LINE__;
 test_case_f(my_fixture, fourth_test_case_f) {}
 
 struct my_arg {
@@ -64,14 +65,21 @@ basic_ostream<Ch>& operator<<(
 }
 
 static my_arg args[] = {my_arg{"a", 1}, my_arg{"b", 2}};
+
+int const fifth_test_case_line = __LINE__;
 test_case_args_arr(fifth_test_case_arr, args) {}
+
+int const sixth_test_case_line = __LINE__;
 test_case_args_arr_f(my_fixture, sixth_test_case_arr_f, args) {}
 
+int const seventh_test_case_line = __LINE__;
 test_case_args(seventh_test_case_args, my_arg, my_arg{"x", 10}, my_arg{"y", 11}) {}
+
+int const eighth_test_case_line = __LINE__;
 test_case_args_f(my_fixture, eighth_test_case_args_f, my_arg, my_arg{"x", 10}, my_arg{"y", 11}) {}
 
 template <typename Ch>
-int testing_main(
+void testing_main(
     int argc,
     Ch* argv[]
 ) {
@@ -84,62 +92,60 @@ int testing_main(
     testing_assert(tests[0].name == TESTING_STR_LIT("first_test_case"));
     testing_assert(tests[0].arg.empty());
     testing_assert(!!strstr(tests[0].file, file_name_check));
-    testing_assert(tests[0].line == 39);  // Brittle but I want to test this
+    testing_assert(tests[0].line == first_test_case_line + 1);
 
     testing_assert(tests[1].name == TESTING_STR_LIT("second_test_case"));
     testing_assert(tests[1].arg.empty());
     testing_assert(!!strstr(tests[1].file, file_name_check));
-    testing_assert(tests[1].line == 40);
+    testing_assert(tests[1].line == second_test_case_line + 1);
 
     testing_assert(tests[2].name == TESTING_STR_LIT("my_fixture.third_test_case_f"));
     testing_assert(tests[2].arg.empty());
     testing_assert(!!strstr(tests[2].file, file_name_check));
-    testing_assert(tests[2].line == 44);
+    testing_assert(tests[2].line == third_test_case_line + 1);
 
     testing_assert(tests[3].name == TESTING_STR_LIT("my_fixture.fourth_test_case_f"));
     testing_assert(tests[3].arg.empty());
     testing_assert(!!strstr(tests[3].file, file_name_check));
-    testing_assert(tests[3].line == 45);
+    testing_assert(tests[3].line == fourth_test_case_line + 1);
 
     testing_assert(tests[4].name == TESTING_STR_LIT("fifth_test_case_arr"));
     testing_assert(tests[4].arg == TESTING_STR_LIT("my_arg{s: 'a', i: 1}"));
     testing_assert(!!strstr(tests[4].file, file_name_check));
-    testing_assert(tests[4].line == 67);
+    testing_assert(tests[4].line == fifth_test_case_line + 1);
 
     testing_assert(tests[5].name == TESTING_STR_LIT("fifth_test_case_arr"));
     testing_assert(tests[5].arg == TESTING_STR_LIT("my_arg{s: 'b', i: 2}"));
     testing_assert(!!strstr(tests[5].file, file_name_check));
-    testing_assert(tests[5].line == 67);
+    testing_assert(tests[5].line == fifth_test_case_line + 1);
 
     testing_assert(tests[6].name == TESTING_STR_LIT("my_fixture.sixth_test_case_arr_f"));
     testing_assert(tests[6].arg == TESTING_STR_LIT("my_arg{s: 'a', i: 1}"));
     testing_assert(!!strstr(tests[6].file, file_name_check));
-    testing_assert(tests[6].line == 68);
+    testing_assert(tests[6].line == sixth_test_case_line + 1);
 
     testing_assert(tests[7].name == TESTING_STR_LIT("my_fixture.sixth_test_case_arr_f"));
     testing_assert(tests[7].arg == TESTING_STR_LIT("my_arg{s: 'b', i: 2}"));
     testing_assert(!!strstr(tests[7].file, file_name_check));
-    testing_assert(tests[7].line == 68);
+    testing_assert(tests[7].line == sixth_test_case_line + 1);
 
     testing_assert(tests[8].name == TESTING_STR_LIT("seventh_test_case_args"));
     testing_assert(tests[8].arg == TESTING_STR_LIT("my_arg{s: 'x', i: 10}"));
     testing_assert(!!strstr(tests[8].file, file_name_check));
-    testing_assert(tests[8].line == 70);
+    testing_assert(tests[8].line == seventh_test_case_line + 1);
 
     testing_assert(tests[9].name == TESTING_STR_LIT("seventh_test_case_args"));
     testing_assert(tests[9].arg == TESTING_STR_LIT("my_arg{s: 'y', i: 11}"));
     testing_assert(!!strstr(tests[9].file, file_name_check));
-    testing_assert(tests[9].line == 70);
+    testing_assert(tests[9].line == seventh_test_case_line + 1);
 
     testing_assert(tests[10].name == TESTING_STR_LIT("my_fixture.eighth_test_case_args_f"));
     testing_assert(tests[10].arg == TESTING_STR_LIT("my_arg{s: 'x', i: 10}"));
     testing_assert(!!strstr(tests[10].file, file_name_check));
-    testing_assert(tests[10].line == 71);
+    testing_assert(tests[10].line == eighth_test_case_line + 1);
 
     testing_assert(tests[11].name == TESTING_STR_LIT("my_fixture.eighth_test_case_args_f"));
     testing_assert(tests[11].arg == TESTING_STR_LIT("my_arg{s: 'y', i: 11}"));
     testing_assert(!!strstr(tests[11].file, file_name_check));
-    testing_assert(tests[11].line == 71);
-
-    return 0;
+    testing_assert(tests[11].line == eighth_test_case_line + 1);
 }

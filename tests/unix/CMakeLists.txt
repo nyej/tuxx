@@ -4,7 +4,7 @@ set(PROJECT_BASE_NAME ${PROJECT_NAME})
 
 if (NOT UNIX)
     # Attempt to emulate Unix behavior
-    add_definitions(-DTESTLIB_IS_UNIX=1)
+    add_definitions(-DTESTLIB_IS_UNIX__=1)
 endif()
 
 add_subdirectory(char)
