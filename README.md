@@ -37,7 +37,7 @@ A simple, modern, extensible single-header C++ unit testing library.
   - [Colorized Output](#colorized-output)
   - [Emojis](#emojis)
   - [TUXX Library Tests and Examples](#tuxx-library-tests-and-examples)
-  - [Testes Platforms/Compilers](#testes-platformscompilers)
+  - [Tested Platforms/Compilers](#tested-platformscompilers)
   - [Windows and WinMain](#windows-and-winmain)
   - [Future Improvements](#future-improvements)
 
@@ -745,7 +745,7 @@ To run examples, cd into the `build/examples` directory and run the executables 
 
 If you run into any issues with building or running the tests or examples, please submit a ticket.
 
-## Testes Platforms/Compilers
+## Tested Platforms/Compilers
 
 |Platform|Compiler|
 |-|-|
@@ -765,4 +765,5 @@ Notes:
 - More library tests
 - More examples
 - More asserts, improvements to existing asserts
+- Better handling of command line options
 - Windows tests to make sure all combinations of `main`/`wmain`/`WinMainA`/`WinMainW` work.

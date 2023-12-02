@@ -25,6 +25,8 @@ SOFTWARE.
 // WARNING: this is a test driver for tuxx itself. It is NOT an example of
 //          how to use tuxx.
 
+#define TESTING_DEFINE_MAIN
+
 #include "testing.hpp"
 
 #include <vector>
@@ -103,11 +105,7 @@ struct testing_reporter : test_case_reporter {
         testing_assert(rpt.asserts[idx].msg == msg_expr); \
     } while (false)
 
-template <typename Ch>
-void testing_main(
-    int argc,
-    Ch* argv[]
-) {
+void testing_main(vector<string_type> const&) {
     mutex m;
 
     {

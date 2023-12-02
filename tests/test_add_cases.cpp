@@ -25,6 +25,8 @@ SOFTWARE.
 // WARNING: this is a test driver for tuxx itself. It is NOT an example of
 //          how to use tuxx.
 
+#define TESTING_DEFINE_MAIN
+
 #include "testing.hpp"
 
 #include <tuxx.hpp>
@@ -78,11 +80,7 @@ test_case_args(seventh_test_case_args, my_arg, my_arg{"x", 10}, my_arg{"y", 11})
 int const eighth_test_case_line = __LINE__;
 test_case_args_f(my_fixture, eighth_test_case_args_f, my_arg, my_arg{"x", 10}, my_arg{"y", 11}) {}
 
-template <typename Ch>
-void testing_main(
-    int argc,
-    Ch* argv[]
-) {
+void testing_main(vector<string_type> const&) {
     char const file_name_check[] = "test_add_cases";
 
     auto const& tests = detail::tests__();
