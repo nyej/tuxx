@@ -3245,7 +3245,7 @@ int main(
     {
         auto res = deps.get_arg_value_fn(args, 'm', "match", false);
         auto const was_found = res.first;
-        opt_name_matches = move(res.second);
+        opt_name_matches = std::move(res.second);
         if (was_found) {
             if (opt_name_matches.empty()) {
                 err_strm << "ERROR: value required for '-m|--match' argument" << endl;
@@ -3301,7 +3301,7 @@ int main(
                 return 1;
             }
             write_junit = true;
-            junit_test_report_name = move(res.second);
+            junit_test_report_name = std::move(res.second);
         }
     }
 
@@ -3369,7 +3369,7 @@ int main(
     {
         auto res = deps.get_arg_value_fn(args, 'n', "number", true);
         auto const was_found = res.first;
-        opt_num_matches = move(res.second);
+        opt_num_matches = std::move(res.second);
         if (was_found) {
             if (opt_num_matches.empty()) {
                 err_strm << "ERROR: value required for '-n|--number' argument" << endl;

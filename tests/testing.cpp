@@ -76,8 +76,8 @@ test_main_ctx::test_main_ctx(
     bool is_atty_res,
     size_t hw_concur
 ) :
-    desc{move(dsc)},
-    args{move(tst_args)},
+    desc{std::move(dsc)},
+    args{std::move(tst_args)},
     run_test_cases_result{run_test_cases_res},
     is_atty_result{is_atty_res},
     hw_concurrency{hw_concur},
@@ -240,7 +240,7 @@ test_main_ctx::test_main_ctx(
     bool is_atty_res,
     size_t hw_concur,
     vector<string_type> tst_args
-) : test_main_ctx{move(dsc), tst_args, run_test_cases_res, is_atty_res, hw_concur} {
+) : test_main_ctx{std::move(dsc), tst_args, run_test_cases_res, is_atty_res, hw_concur} {
     if (!arg.use_color) {
         args.push_back(TESTING_STR_LIT("--no-color"));
     }

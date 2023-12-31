@@ -3927,7 +3927,7 @@ struct test_reporter_junit_ctx {
         p_rep.reset(
             new tst::test_case_reporter_junit{
                 rpt_os,
-                move(prog_name),
+                std::move(prog_name),
                 n_total_tests,
                 test_report_name,
                 tst::test_case_reporter_junit::dependencies{
